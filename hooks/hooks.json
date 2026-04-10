@@ -1,0 +1,11 @@
+{
+  "hooks": [
+    {
+      "event": "PostToolUse",
+      "matcher": {
+        "tool_name": "Edit"
+      },
+      "command": "bash -c 'if grep -rn \"deleteMany\\|updateMany\" --include=\"*.ts\" --include=\"*.tsx\" src/ 2>/dev/null; then echo \"ERROR: Bulk DB operations (deleteMany/updateMany) are not allowed. Use single-record operations.\" && exit 1; fi && if grep -rn \"\\$queryRaw\\|\\$executeRaw\\|sql\\`\" --include=\"*.ts\" --include=\"*.tsx\" src/ 2>/dev/null; then echo \"ERROR: Raw SQL detected. Use Prisma ORM only.\" && exit 1; fi'"
+    }
+  ]
+}
