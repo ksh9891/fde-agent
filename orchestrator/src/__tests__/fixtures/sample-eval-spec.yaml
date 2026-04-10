@@ -1,0 +1,45 @@
+project: resort-admin-prototype
+preset: admin-web
+palette: warm-neutral
+
+domain:
+  entities:
+    - name: 객실
+      fields: [객실번호, 타입, 층, 상태, 가격]
+    - name: 예약
+      fields: [예약번호, 고객명, 객실, 체크인, 체크아웃, 상태]
+
+  key_flows:
+    - 예약 목록 조회 및 필터링
+    - 신규 예약 등록
+
+requirements:
+  - id: FR-001
+    title: 신규 예약 등록
+    severity: hard
+    test_method: e2e
+    description: 객실 선택 → 고객 정보 입력 → 저장까지 완료 가능
+
+  - id: NFR-001
+    title: 빌드 성공
+    severity: hard
+    test_method: build_check
+    description: 빌드가 성공해야 한다
+
+  - id: NFR-002
+    title: 콘솔 에러 없음
+    severity: hard
+    test_method: console_check
+    description: 치명적 콘솔 에러가 없어야 한다
+
+data_source:
+  type: mock
+
+constraints:
+  - React + TypeScript + Next.js
+  - shadcn/ui 컴포넌트 사용
+
+external_secrets:
+  - name: GOOGLE_MAPS_API_KEY
+    description: 지도 표시
+    required: false
