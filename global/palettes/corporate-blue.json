@@ -1,0 +1,28 @@
+{
+  "name": "Corporate Blue",
+  "description": "신뢰/전문 느낌 — 금융, 컨설팅, B2B",
+  "colors": {
+    "background": "#FFFFFF",
+    "foreground": "#0F172A",
+    "card": "#F8FAFC",
+    "card-foreground": "#0F172A",
+    "primary": "#1E40AF",
+    "primary-foreground": "#FFFFFF",
+    "secondary": "#E2E8F0",
+    "secondary-foreground": "#334155",
+    "muted": "#F1F5F9",
+    "muted-foreground": "#64748B",
+    "accent": "#DBEAFE",
+    "accent-foreground": "#1E40AF",
+    "destructive": "#DC2626",
+    "destructive-foreground": "#FFFFFF",
+    "border": "#CBD5E1",
+    "input": "#CBD5E1",
+    "ring": "#1E40AF",
+    "sidebar": "#F8FAFC",
+    "sidebar-foreground": "#334155",
+    "sidebar-accent": "#1E40AF"
+  },
+  "radius": "0.5rem",
+  "font": { "sans": "Inter, Pretendard, sans-serif" }
+}
