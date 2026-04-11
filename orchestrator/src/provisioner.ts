@@ -1,6 +1,7 @@
 import { mkdir, cp } from "fs/promises";
 import { join, resolve } from "path";
 import { existsSync } from "fs";
+import { execa } from "execa";
 
 interface ProvisionerOptions {
   workspaceRoot: string;
@@ -32,12 +33,23 @@ export class Provisioner {
     await mkdir(workspace, { recursive: true });
     await mkdir(join(workspace, "meta"), { recursive: true });
 
-    // Copy preset scaffold if exists
+    // Copy preset scaffold if exists (exclude node_modules and .next)
     const presetDir = join(this.presetsDir, input.preset, "core", "scaffold");
     if (existsSync(presetDir)) {
-      await cp(presetDir, join(workspace, "app"), { recursive: true });
+      await cp(presetDir, join(workspace, "app"), {
+        recursive: true,
+        filter: (src) => !src.includes("node_modules") && !src.includes(".next"),
+      });
     } else {
       await mkdir(join(workspace, "app"), { recursive: true });
+    }
+
+    // Install dependencies in workspace
+    const appDir = join(workspace, "app");
+    if (existsSync(join(appDir, "package.json"))) {
+      console.log("[FDE-AGENT] Installing dependencies in workspace...");
+      await execa("npm", ["install"], { cwd: appDir, timeout: 120_000 });
+      console.log("[FDE-AGENT] Dependencies installed");
     }
 
     // Copy palette if exists

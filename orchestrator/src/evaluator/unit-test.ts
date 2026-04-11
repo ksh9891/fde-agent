@@ -6,9 +6,10 @@ export class UnitTestEvaluator implements Evaluator {
   readonly name = "unit_test" as const;
 
   async run(workspace: string): Promise<EvalResult> {
+    const appDir = `${workspace}/app`;
     try {
       await execa("npm", ["run", "test"], {
-        cwd: workspace,
+        cwd: appDir,
         reject: true,
       });
 
@@ -26,6 +27,7 @@ export class UnitTestEvaluator implements Evaluator {
       if (err.stdout) evidence.push(err.stdout);
       if (evidence.length === 0 && err.message) evidence.push(err.message);
 
+      const errorOutput = evidence.join("\n").slice(-2000);
       return {
         evaluator: "unit_test",
         status: "fail",
@@ -35,6 +37,7 @@ export class UnitTestEvaluator implements Evaluator {
             id: "unit_test_failed",
             message: "npm run test exited with non-zero status",
             evidence,
+            repair_hint: `Unit tests failed. Error output:\n${errorOutput}`,
           },
         ],
       };

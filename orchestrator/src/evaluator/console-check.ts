@@ -22,13 +22,14 @@ export class ConsoleCheckEvaluator implements Evaluator {
   readonly name = "console" as const;
 
   async run(workspace: string): Promise<EvalResult> {
+    const appDir = `${workspace}/app`;
     let output = "";
 
     try {
       const result = await execa(
         "npx",
         ["playwright", "test", "--project=console-check"],
-        { cwd: workspace, reject: false, all: true },
+        { cwd: appDir, reject: false, all: true },
       );
       output = result.all ?? result.stdout ?? "";
     } catch (error: unknown) {

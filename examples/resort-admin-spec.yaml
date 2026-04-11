@@ -1,0 +1,53 @@
+project: resort-admin-prototype
+preset: admin-web
+palette: warm-neutral
+
+domain:
+  entities:
+    - name: 객실
+      fields: [객실번호, 타입, 층, 상태, 가격]
+    - name: 예약
+      fields: [예약번호, 고객명, 객실, 체크인, 체크아웃, 상태]
+    - name: 고객
+      fields: [고객번호, 이름, 연락처, 등급]
+
+  key_flows:
+    - 예약 목록 조회 및 필터링
+    - 예약 상세 보기
+    - 신규 예약 등록
+    - 예약 상태 변경 (확정/취소)
+    - 고객 목록 조회
+    - 대시보드 (오늘 체크인/체크아웃 현황)
+
+requirements:
+  - id: FR-001
+    title: 신규 예약 등록
+    severity: hard
+    test_method: e2e
+    description: 객실 선택 → 고객 정보 입력 → 저장까지 완료 가능
+
+  - id: FR-002
+    title: 예약 목록 조회
+    severity: hard
+    test_method: e2e
+    description: 예약 목록을 테이블로 조회하고 검색할 수 있다
+
+  - id: NFR-001
+    title: 빌드 성공
+    severity: hard
+    test_method: build_check
+    description: npm run build가 성공해야 한다
+
+  - id: NFR-002
+    title: 콘솔 에러 없음
+    severity: hard
+    test_method: console_check
+    description: 치명적 콘솔 에러가 없어야 한다
+
+data_source:
+  type: mock
+
+constraints:
+  - React + TypeScript + Next.js
+  - shadcn/ui 컴포넌트 사용
+  - 한국어 UI

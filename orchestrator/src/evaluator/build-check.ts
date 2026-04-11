@@ -6,9 +6,10 @@ export class BuildCheckEvaluator implements Evaluator {
   readonly name = "build" as const;
 
   async run(workspace: string): Promise<EvalResult> {
+    const appDir = `${workspace}/app`;
     try {
       await execa("npm", ["run", "build"], {
-        cwd: workspace,
+        cwd: appDir,
         reject: true,
       });
 
@@ -26,6 +27,7 @@ export class BuildCheckEvaluator implements Evaluator {
       if (err.stdout) evidence.push(err.stdout);
       if (evidence.length === 0 && err.message) evidence.push(err.message);
 
+      const errorOutput = evidence.join("\n").slice(-2000); // Last 2000 chars
       return {
         evaluator: "build",
         status: "fail",
@@ -35,6 +37,7 @@ export class BuildCheckEvaluator implements Evaluator {
             id: "build_failed",
             message: "npm run build exited with non-zero status",
             evidence,
+            repair_hint: `Build failed. Error output:\n${errorOutput}`,
           },
         ],
       };

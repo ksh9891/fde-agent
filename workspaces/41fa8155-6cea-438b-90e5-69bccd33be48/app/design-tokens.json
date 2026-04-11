@@ -1,0 +1,28 @@
+{
+  "name": "Warm Neutral",
+  "description": "부드러운 느낌 — 리조트, 호텔, 라이프스타일",
+  "colors": {
+    "background": "#FAFAF9",
+    "foreground": "#1C1917",
+    "card": "#FFFFFF",
+    "card-foreground": "#1C1917",
+    "primary": "#A16207",
+    "primary-foreground": "#FFFFFF",
+    "secondary": "#F5F5F4",
+    "secondary-foreground": "#44403C",
+    "muted": "#F5F5F4",
+    "muted-foreground": "#78716C",
+    "accent": "#FEF3C7",
+    "accent-foreground": "#A16207",
+    "destructive": "#DC2626",
+    "destructive-foreground": "#FFFFFF",
+    "border": "#D6D3D1",
+    "input": "#D6D3D1",
+    "ring": "#A16207",
+    "sidebar": "#FAFAF9",
+    "sidebar-foreground": "#44403C",
+    "sidebar-accent": "#A16207"
+  },
+  "radius": "0.75rem",
+  "font": { "sans": "Noto Sans KR, Pretendard, sans-serif" }
+}

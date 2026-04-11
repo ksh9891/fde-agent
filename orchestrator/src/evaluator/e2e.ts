@@ -48,13 +48,14 @@ export class E2EEvaluator implements Evaluator {
   readonly name = "e2e" as const;
 
   async run(workspace: string): Promise<EvalResult> {
+    const appDir = `${workspace}/app`;
     let rawOutput = "";
 
     try {
       const result = await execa(
         "npx",
         ["playwright", "test", "--project=e2e", "--reporter=json"],
-        { cwd: workspace, reject: false, all: true },
+        { cwd: appDir, reject: false, all: true },
       );
       rawOutput = result.stdout ?? result.all ?? "";
     } catch (error: unknown) {

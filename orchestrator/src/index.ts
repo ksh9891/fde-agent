@@ -6,6 +6,10 @@ import { parseEvalSpec } from "./eval-spec-parser.js";
 import { Provisioner } from "./provisioner.js";
 import { ClaudeCodeBuilder } from "./builder/claude-code.js";
 import { EvalPipeline } from "./evaluator/pipeline.js";
+import { BuildCheckEvaluator } from "./evaluator/build-check.js";
+import { UnitTestEvaluator } from "./evaluator/unit-test.js";
+import { ConsoleCheckEvaluator } from "./evaluator/console-check.js";
+import { E2EEvaluator } from "./evaluator/e2e.js";
 import { loadIterationState } from "./resume.js";
 import { mainLoop } from "./loop.js";
 import { writeReport } from "./reporter.js";
@@ -54,7 +58,7 @@ async function main() {
   // Setup provisioner, builder, pipeline
   const workspaceRoot = resolve(pluginDir, "workspaces");
   const presetsDir = resolve(pluginDir, "presets");
-  const palettesDir = resolve(pluginDir, "palettes");
+  const palettesDir = resolve(pluginDir, "global", "palettes");
 
   const provisioner = new Provisioner({
     workspaceRoot,
@@ -66,7 +70,12 @@ async function main() {
 
   const builder = new ClaudeCodeBuilder({ systemPromptPath });
 
-  const pipeline = new EvalPipeline([]);
+  const pipeline = new EvalPipeline([
+    new BuildCheckEvaluator(),
+    new UnitTestEvaluator(),
+    new ConsoleCheckEvaluator(),
+    new E2EEvaluator(),
+  ]);
 
   // Handle resume vs fresh start
   let runId: string;
@@ -108,8 +117,11 @@ async function main() {
     startIteration,
   });
 
-  // Write report
-  await writeReport(workspace, finalState, [], evalSpec.project);
+  // Write report — run evaluators one more time to get final results for the report
+  const finalResults = finalState.status === "completed"
+    ? (await pipeline.runAll(workspace)).results
+    : [];
+  await writeReport(workspace, finalState, finalResults, evalSpec.project);
 
   // Log results
   console.log(`[FDE-AGENT] Run complete`);

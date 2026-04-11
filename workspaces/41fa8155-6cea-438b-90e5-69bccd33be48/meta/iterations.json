@@ -1,0 +1,160 @@
+{
+  "run_id": "41fa8155-6cea-438b-90e5-69bccd33be48",
+  "total_iterations": 15,
+  "max_iterations": 15,
+  "status": "escalated",
+  "escalation_reason": "Max iterations exceeded",
+  "resumable": true,
+  "history": [
+    {
+      "iteration": 1,
+      "passed": [
+        "build"
+      ],
+      "failed": [
+        "unit_test_failed"
+      ],
+      "status": "running"
+    },
+    {
+      "iteration": 2,
+      "passed": [
+        "build"
+      ],
+      "failed": [
+        "unit_test_failed"
+      ],
+      "status": "running"
+    },
+    {
+      "iteration": 3,
+      "passed": [
+        "build"
+      ],
+      "failed": [
+        "unit_test_failed"
+      ],
+      "status": "running"
+    },
+    {
+      "iteration": 4,
+      "passed": [
+        "build"
+      ],
+      "failed": [
+        "unit_test_failed"
+      ],
+      "status": "running"
+    },
+    {
+      "iteration": 5,
+      "passed": [
+        "build"
+      ],
+      "failed": [
+        "unit_test_failed"
+      ],
+      "status": "running"
+    },
+    {
+      "iteration": 6,
+      "passed": [
+        "build"
+      ],
+      "failed": [
+        "unit_test_failed"
+      ],
+      "status": "running"
+    },
+    {
+      "iteration": 7,
+      "passed": [
+        "build"
+      ],
+      "failed": [
+        "unit_test_failed"
+      ],
+      "status": "running"
+    },
+    {
+      "iteration": 8,
+      "passed": [
+        "build"
+      ],
+      "failed": [
+        "unit_test_failed"
+      ],
+      "status": "running"
+    },
+    {
+      "iteration": 9,
+      "passed": [
+        "build"
+      ],
+      "failed": [
+        "unit_test_failed"
+      ],
+      "status": "running"
+    },
+    {
+      "iteration": 10,
+      "passed": [
+        "build"
+      ],
+      "failed": [
+        "unit_test_failed"
+      ],
+      "status": "running"
+    },
+    {
+      "iteration": 11,
+      "passed": [
+        "build"
+      ],
+      "failed": [
+        "unit_test_failed"
+      ],
+      "status": "running"
+    },
+    {
+      "iteration": 12,
+      "passed": [
+        "build"
+      ],
+      "failed": [
+        "unit_test_failed"
+      ],
+      "status": "running"
+    },
+    {
+      "iteration": 13,
+      "passed": [
+        "build"
+      ],
+      "failed": [
+        "unit_test_failed"
+      ],
+      "status": "running"
+    },
+    {
+      "iteration": 14,
+      "passed": [
+        "build"
+      ],
+      "failed": [
+        "unit_test_failed"
+      ],
+      "status": "running"
+    },
+    {
+      "iteration": 15,
+      "passed": [
+        "build"
+      ],
+      "failed": [
+        "unit_test_failed"
+      ],
+      "status": "running"
+    }
+  ]
+}

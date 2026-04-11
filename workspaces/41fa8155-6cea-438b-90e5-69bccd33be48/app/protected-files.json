@@ -1,0 +1,10 @@
+{
+  "protected": [
+    "design-tokens.json",
+    "app/layout.tsx",
+    "components/ui/**",
+    "lib/auth/**",
+    "prisma/schema.prisma"
+  ],
+  "description": "These files are part of the preset core and must not be modified by the Builder"
+}

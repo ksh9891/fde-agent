@@ -22,9 +22,10 @@ export async function mainLoop(input: MainLoopInput): Promise<IterationState> {
 
   for (let iteration = startIteration; iteration <= maxIterations; iteration++) {
     // 1. Build task contract from evalSpec + previous failures
+    // Builder works inside workspace/app (the actual Next.js project)
     const taskContract = buildTaskContract({
       evalSpec,
-      workspace,
+      workspace: `${workspace}/app`,
       runId,
       iteration,
       failures: previousFailures,
