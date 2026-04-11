@@ -86,35 +86,40 @@ export class Provisioner {
     entities: EntityDef[],
     slugMap: Record<string, string>
   ): Promise<void> {
-    // Generate mock data file
-    const mockDataLines: string[] = [];
-    mockDataLines.push("// Auto-generated mock data — Builder should enhance this");
-    mockDataLines.push("");
+    // Generate types file
+    const typesLines: string[] = [];
+    typesLines.push("// Auto-generated entity types — Builder should enhance this");
+    typesLines.push("");
+
+    // Generate seed data file
+    const seedLines: string[] = [];
+    seedLines.push("// Auto-generated seed data — Builder should enhance this");
+    seedLines.push("");
 
     for (const entity of entities) {
       const slug = slugMap[entity.name] ?? entity.name.toLowerCase();
       const typeName = slug.charAt(0).toUpperCase() + slug.slice(1, -1); // "reservations" → "Reservation"
 
       // Type definition
-      mockDataLines.push(`export interface ${typeName} {`);
-      mockDataLines.push(`  id: string;`);
+      typesLines.push(`export interface ${typeName} {`);
+      typesLines.push(`  id: string;`);
       for (const field of entity.fields) {
-        mockDataLines.push(`  ${this.toFieldKey(field)}: string;`);
+        typesLines.push(`  ${this.toFieldKey(field)}: string;`);
       }
-      mockDataLines.push(`}`);
-      mockDataLines.push("");
+      typesLines.push(`}`);
+      typesLines.push("");
 
-      // Mock data array with realistic data
-      mockDataLines.push(`export const ${slug}Data: ${typeName}[] = [`);
+      // Seed data array
+      seedLines.push(`export const ${slug}Seed = [`);
       const sampleValues = this.getRealisticSampleData(entity.name, entity.fields);
       for (let i = 0; i < sampleValues.length; i++) {
         const fields = entity.fields
           .map((f) => `    ${this.toFieldKey(f)}: "${sampleValues[i][f] ?? ""}"`)
           .join(",\n");
-        mockDataLines.push(`  {\n    id: "${i + 1}",\n${fields}\n  },`);
+        seedLines.push(`  {\n    id: "${i + 1}",\n${fields}\n  },`);
       }
-      mockDataLines.push(`];`);
-      mockDataLines.push("");
+      seedLines.push(`];`);
+      seedLines.push("");
 
       // Generate list page
       const listPageDir = join(appDir, "src", "app", "(admin)", slug);
@@ -149,8 +154,14 @@ export class Provisioner {
       );
     }
 
-    // Write mock data file
-    await writeFile(join(appDir, "src", "lib", "mock-data.ts"), mockDataLines.join("\n"));
+    // Write types file
+    await writeFile(join(appDir, "src", "lib", "types.ts"), typesLines.join("\n"));
+
+    // Write seed data file
+    await writeFile(join(appDir, "src", "lib", "seed-data.ts"), seedLines.join("\n"));
+
+    // Generate seed API route
+    await this.generateSeedRoute(appDir, entities, slugMap);
 
     // Update sidebar nav in admin layout
     await this.updateAdminLayout(appDir, entities, slugMap);
@@ -163,10 +174,12 @@ export class Provisioner {
 
     return `"use client";
 
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { DataTable } from "@/components/shared/data-table";
 import { Button } from "@/components/ui/button";
-import { ${slug}Data } from "@/lib/mock-data";
+import { fetchAll } from "@/lib/api-client";
+import type { ${typeName} } from "@/lib/types";
 
 const columns = [
 ${columns}
@@ -174,6 +187,14 @@ ${columns}
 
 export default function ${typeName}ListPage() {
   const router = useRouter();
+  const [data, setData] = useState<${typeName}[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchAll<${typeName}>("${slug}").then((d) => { setData(d); setLoading(false); });
+  }, []);
+
+  if (loading) return <div className="p-4">로딩 중...</div>;
 
   return (
     <div className="space-y-4">
@@ -182,7 +203,7 @@ export default function ${typeName}ListPage() {
         <Button onClick={() => router.push("/${slug}/new")}>새 ${entity.name}</Button>
       </div>
       <DataTable
-        data={${slug}Data}
+        data={data}
         columns={columns}
         searchKey="${this.toFieldKey(entity.fields[0])}"
         searchPlaceholder="${entity.fields[0]}(으)로 검색..."
@@ -207,15 +228,30 @@ export default function ${typeName}ListPage() {
 
     return `"use client";
 
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ${slug}Data } from "@/lib/mock-data";
+import { fetchById, deleteItem } from "@/lib/api-client";
+import type { ${typeName} } from "@/lib/types";
 
 export default function ${typeName}DetailPage() {
   const params = useParams();
   const router = useRouter();
-  const item = ${slug}Data.find((d) => d.id === params.id);
+  const [item, setItem] = useState<${typeName} | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchById<${typeName}>("${slug}", params.id as string).then((d) => { setItem(d); setLoading(false); });
+  }, [params.id]);
+
+  const handleDelete = async () => {
+    if (!confirm("정말 삭제하시겠습니까?")) return;
+    await deleteItem("${slug}", params.id as string);
+    router.push("/${slug}");
+  };
+
+  if (loading) return <div className="p-4">로딩 중...</div>;
 
   if (!item) {
     return <div className="p-4">항목을 찾을 수 없습니다.</div>;
@@ -226,6 +262,7 @@ export default function ${typeName}DetailPage() {
       <div className="flex items-center gap-2">
         <Button variant="outline" onClick={() => router.push("/${slug}")}>목록</Button>
         <Button variant="outline" onClick={() => router.push(\`/${slug}/\${params.id}/edit\`)}>수정</Button>
+        <Button variant="destructive" onClick={handleDelete}>삭제</Button>
       </div>
       <Card>
         <CardHeader>
@@ -255,6 +292,7 @@ ${fieldRows}
 
 import { useRouter } from "next/navigation";
 import { FormBuilder } from "@/components/shared/form-builder";
+import { createItem } from "@/lib/api-client";
 
 const fields = [
 ${fields}
@@ -263,8 +301,8 @@ ${fields}
 export default function New${typeName}Page() {
   const router = useRouter();
 
-  const handleSubmit = (data: Record<string, unknown>) => {
-    console.log("Submitted:", data);
+  const handleSubmit = async (data: Record<string, unknown>) => {
+    await createItem("${slug}", data);
     router.push("/${slug}");
   };
 
@@ -292,9 +330,11 @@ export default function New${typeName}Page() {
 
     return `"use client";
 
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { FormBuilder } from "@/components/shared/form-builder";
-import { ${slug}Data } from "@/lib/mock-data";
+import { fetchById, updateItem } from "@/lib/api-client";
+import type { ${typeName} } from "@/lib/types";
 
 const fields = [
 ${fields}
@@ -303,14 +343,21 @@ ${fields}
 export default function Edit${typeName}Page() {
   const params = useParams();
   const router = useRouter();
-  const item = ${slug}Data.find((d) => d.id === params.id);
+  const [item, setItem] = useState<${typeName} | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchById<${typeName}>("${slug}", params.id as string).then((d) => { setItem(d); setLoading(false); });
+  }, [params.id]);
+
+  if (loading) return <div className="p-4">로딩 중...</div>;
 
   if (!item) {
     return <div className="p-4">항목을 찾을 수 없습니다.</div>;
   }
 
-  const handleSubmit = (data: Record<string, unknown>) => {
-    console.log("Updated:", data);
+  const handleSubmit = async (data: Record<string, unknown>) => {
+    await updateItem("${slug}", params.id as string, data);
     router.push(\`/${slug}/\${params.id}\`);
   };
 
@@ -414,6 +461,42 @@ export default function Edit${typeName}Page() {
     return `${field} ${index}`;
   }
 
+  private async generateSeedRoute(
+    appDir: string,
+    entities: EntityDef[],
+    slugMap: Record<string, string>
+  ): Promise<void> {
+    const seedRouteDir = join(appDir, "src", "app", "api", "seed");
+    await mkdir(seedRouteDir, { recursive: true });
+
+    const imports = entities
+      .map((e) => {
+        const slug = slugMap[e.name] ?? e.name.toLowerCase();
+        return `import { ${slug}Seed } from "@/lib/seed-data";`;
+      })
+      .join("\n");
+
+    const storeCreations = entities
+      .map((e) => {
+        const slug = slugMap[e.name] ?? e.name.toLowerCase();
+        return `  const ${slug}Store = createDataStore("${slug}");\n  ${slug}Store.seed(${slug}Seed);`;
+      })
+      .join("\n\n");
+
+    const routeContent = `import { NextResponse } from "next/server";
+import { createDataStore } from "@/lib/data-store";
+${imports}
+
+export async function POST() {
+${storeCreations}
+
+  return NextResponse.json({ seeded: true });
+}
+`;
+
+    await writeFile(join(seedRouteDir, "route.ts"), routeContent);
+  }
+
   private async updateAdminLayout(
     appDir: string,
     entities: EntityDef[],
@@ -434,7 +517,7 @@ export default function Edit${typeName}Page() {
 import { useRouter } from "next/navigation";
 import { AdminLayout } from "@/components/layout/admin-layout";
 import { useAuth } from "@/lib/auth";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 const navItems = [
     { title: "대시보드", href: "/dashboard" },
@@ -448,12 +531,20 @@ export default function AdminLayoutWrapper({
 }) {
   const { isAuthenticated } = useAuth();
   const router = useRouter();
+  const seeded = useRef(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
       router.push("/login");
     }
   }, [isAuthenticated, router]);
+
+  useEffect(() => {
+    if (!seeded.current) {
+      seeded.current = true;
+      fetch("/api/seed", { method: "POST" }).catch(() => {});
+    }
+  }, []);
 
   if (!isAuthenticated) {
     return null;
