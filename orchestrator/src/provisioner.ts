@@ -175,7 +175,7 @@ export default function ${typeName}ListPage() {
         columns={columns}
         searchKey="${this.toFieldKey(entity.fields[0])}"
         searchPlaceholder="${entity.fields[0]}(으)로 검색..."
-        onRowClick={(row) => router.push(\`/${slug}/\${(row as Record<string, unknown>).id}\`)}
+        onRowClick={(row) => router.push(\`/${slug}/\${row.id}\`)}
       />
     </div>
   );
