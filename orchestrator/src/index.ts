@@ -118,6 +118,8 @@ async function main() {
       runId,
       preset: evalSpec.preset,
       palette: evalSpec.palette,
+      entities: evalSpec.domain.entities,
+      entitySlugMap: entitySlugMap,
     });
     startIteration = 1;
   }

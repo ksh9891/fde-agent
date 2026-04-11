@@ -42,7 +42,7 @@ export class ClaudeCodeBuilder implements BuilderInterface {
     try {
       const result = await execa(executable, args, {
         cwd,
-        timeout: 10 * 60 * 1000, // 10 minutes
+        timeout: 20 * 60 * 1000, // 20 minutes
       });
 
       return {
