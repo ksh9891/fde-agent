@@ -104,11 +104,14 @@ export class Provisioner {
       mockDataLines.push(`}`);
       mockDataLines.push("");
 
-      // Mock data array
+      // Mock data array with realistic data
       mockDataLines.push(`export const ${slug}Data: ${typeName}[] = [`);
-      for (let i = 1; i <= 10; i++) {
-        const fields = entity.fields.map((f) => `    ${this.toFieldKey(f)}: "${f} ${i}"`).join(",\n");
-        mockDataLines.push(`  {\n    id: "${i}",\n${fields}\n  },`);
+      const sampleValues = this.getRealisticSampleData(entity.name, entity.fields);
+      for (let i = 0; i < sampleValues.length; i++) {
+        const fields = entity.fields
+          .map((f) => `    ${this.toFieldKey(f)}: "${sampleValues[i][f] ?? ""}"`)
+          .join(",\n");
+        mockDataLines.push(`  {\n    id: "${i + 1}",\n${fields}\n  },`);
       }
       mockDataLines.push(`];`);
       mockDataLines.push("");
@@ -135,6 +138,14 @@ export class Provisioner {
       await writeFile(
         join(newPageDir, "page.tsx"),
         this.generateFormPage(entity, slug, typeName)
+      );
+
+      // Generate edit page
+      const editPageDir = join(detailPageDir, "edit");
+      await mkdir(editPageDir, { recursive: true });
+      await writeFile(
+        join(editPageDir, "page.tsx"),
+        this.generateEditPage(entity, slug, typeName)
       );
     }
 
@@ -269,6 +280,138 @@ export default function New${typeName}Page() {
   );
 }
 `;
+  }
+
+  private generateEditPage(entity: EntityDef, slug: string, typeName: string): string {
+    const fields = entity.fields
+      .map(
+        (f) =>
+          `    { name: "${this.toFieldKey(f)}", label: "${f}", type: "text" as const, required: true },`
+      )
+      .join("\n");
+
+    return `"use client";
+
+import { useParams, useRouter } from "next/navigation";
+import { FormBuilder } from "@/components/shared/form-builder";
+import { ${slug}Data } from "@/lib/mock-data";
+
+const fields = [
+${fields}
+];
+
+export default function Edit${typeName}Page() {
+  const params = useParams();
+  const router = useRouter();
+  const item = ${slug}Data.find((d) => d.id === params.id);
+
+  if (!item) {
+    return <div className="p-4">항목을 찾을 수 없습니다.</div>;
+  }
+
+  const handleSubmit = (data: Record<string, unknown>) => {
+    console.log("Updated:", data);
+    router.push(\`/${slug}/\${params.id}\`);
+  };
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-2xl font-bold">${entity.name} 수정</h2>
+      <FormBuilder
+        fields={fields}
+        onSubmit={handleSubmit}
+        defaultValues={item as unknown as Record<string, unknown>}
+        submitLabel="수정"
+      />
+    </div>
+  );
+}
+`;
+  }
+
+  private getRealisticSampleData(
+    entityName: string,
+    fields: string[]
+  ): Record<string, string>[] {
+    const samples: Record<string, Record<string, string>[]> = {
+      "객실": [
+        { "객실번호": "101", "타입": "디럭스 트윈", "층": "1층", "상태": "사용가능", "가격": "250,000" },
+        { "객실번호": "102", "타입": "디럭스 더블", "층": "1층", "상태": "사용가능", "가격": "280,000" },
+        { "객실번호": "201", "타입": "스위트", "층": "2층", "상태": "사용중", "가격": "450,000" },
+        { "객실번호": "202", "타입": "디럭스 트윈", "층": "2층", "상태": "청소중", "가격": "250,000" },
+        { "객실번호": "203", "타입": "스탠다드 더블", "층": "2층", "상태": "사용가능", "가격": "180,000" },
+        { "객실번호": "301", "타입": "프리미엄 스위트", "층": "3층", "상태": "사용가능", "가격": "650,000" },
+        { "객실번호": "302", "타입": "디럭스 트윈", "층": "3층", "상태": "사용중", "가격": "250,000" },
+        { "객실번호": "303", "타입": "스탠다드 트윈", "층": "3층", "상태": "사용가능", "가격": "160,000" },
+        { "객실번호": "401", "타입": "로얄 스위트", "층": "4층", "상태": "점검중", "가격": "850,000" },
+        { "객실번호": "402", "타입": "디럭스 더블", "층": "4층", "상태": "사용가능", "가격": "280,000" },
+        { "객실번호": "501", "타입": "펜트하우스", "층": "5층", "상태": "사용가능", "가격": "1,200,000" },
+        { "객실번호": "502", "타입": "디럭스 트윈", "층": "5층", "상태": "사용중", "가격": "250,000" },
+      ],
+      "예약": [
+        { "예약번호": "RSV-2026-0001", "고객명": "김민수", "객실": "301호 프리미엄 스위트", "체크인": "2026-04-15", "체크아웃": "2026-04-17", "상태": "확정" },
+        { "예약번호": "RSV-2026-0002", "고객명": "이서연", "객실": "201호 스위트", "체크인": "2026-04-16", "체크아웃": "2026-04-19", "상태": "확정" },
+        { "예약번호": "RSV-2026-0003", "고객명": "박지훈", "객실": "102호 디럭스 더블", "체크인": "2026-04-18", "체크아웃": "2026-04-20", "상태": "대기" },
+        { "예약번호": "RSV-2026-0004", "고객명": "최예진", "객실": "501호 펜트하우스", "체크인": "2026-04-20", "체크아웃": "2026-04-25", "상태": "확정" },
+        { "예약번호": "RSV-2026-0005", "고객명": "정우성", "객실": "101호 디럭스 트윈", "체크인": "2026-04-14", "체크아웃": "2026-04-16", "상태": "체크아웃 완료" },
+        { "예약번호": "RSV-2026-0006", "고객명": "한소희", "객실": "402호 디럭스 더블", "체크인": "2026-04-21", "체크아웃": "2026-04-23", "상태": "대기" },
+        { "예약번호": "RSV-2026-0007", "고객명": "송민호", "객실": "203호 스탠다드 더블", "체크인": "2026-04-17", "체크아웃": "2026-04-18", "상태": "취소" },
+        { "예약번호": "RSV-2026-0008", "고객명": "윤아름", "객실": "302호 디럭스 트윈", "체크인": "2026-04-19", "체크아웃": "2026-04-22", "상태": "확정" },
+        { "예약번호": "RSV-2026-0009", "고객명": "장도윤", "객실": "401호 로얄 스위트", "체크인": "2026-04-25", "체크아웃": "2026-04-28", "상태": "대기" },
+        { "예약번호": "RSV-2026-0010", "고객명": "오수진", "객실": "303호 스탠다드 트윈", "체크인": "2026-04-22", "체크아웃": "2026-04-24", "상태": "확정" },
+      ],
+      "고객": [
+        { "고객번호": "C-001", "이름": "김민수", "연락처": "010-1234-5678", "등급": "VIP" },
+        { "고객번호": "C-002", "이름": "이서연", "연락처": "010-2345-6789", "등급": "VIP" },
+        { "고객번호": "C-003", "이름": "박지훈", "연락처": "010-3456-7890", "등급": "일반" },
+        { "고객번호": "C-004", "이름": "최예진", "연락처": "010-4567-8901", "등급": "VVIP" },
+        { "고객번호": "C-005", "이름": "정우성", "연락처": "010-5678-9012", "등급": "일반" },
+        { "고객번호": "C-006", "이름": "한소희", "연락처": "010-6789-0123", "등급": "VIP" },
+        { "고객번호": "C-007", "이름": "송민호", "연락처": "010-7890-1234", "등급": "일반" },
+        { "고객번호": "C-008", "이름": "윤아름", "연락처": "010-8901-2345", "등급": "VIP" },
+        { "고객번호": "C-009", "이름": "장도윤", "연락처": "010-9012-3456", "등급": "VVIP" },
+        { "고객번호": "C-010", "이름": "오수진", "연락처": "010-0123-4567", "등급": "일반" },
+        { "고객번호": "C-011", "이름": "강현우", "연락처": "010-1111-2222", "등급": "VIP" },
+        { "고객번호": "C-012", "이름": "임수빈", "연락처": "010-3333-4444", "등급": "일반" },
+      ],
+    };
+
+    // If we have predefined data for this entity, use it
+    if (samples[entityName]) {
+      return samples[entityName];
+    }
+
+    // Fallback: generate generic but somewhat realistic data
+    const result: Record<string, string>[] = [];
+    for (let i = 1; i <= 10; i++) {
+      const row: Record<string, string> = {};
+      for (const field of fields) {
+        row[field] = this.generateGenericValue(field, i);
+      }
+      result.push(row);
+    }
+    return result;
+  }
+
+  private generateGenericValue(field: string, index: number): string {
+    const lower = field.toLowerCase();
+    if (lower.includes("번호") || lower.includes("id")) return `${field.replace("번호", "")}-${String(index).padStart(3, "0")}`;
+    if (lower.includes("이름") || lower.includes("명")) {
+      const names = ["김민수", "이서연", "박지훈", "최예진", "정우성", "한소희", "송민호", "윤아름", "장도윤", "오수진"];
+      return names[(index - 1) % names.length];
+    }
+    if (lower.includes("연락처") || lower.includes("전화")) return `010-${String(1000 + index).slice(1)}-${String(5000 + index).slice(1)}`;
+    if (lower.includes("상태")) {
+      const statuses = ["활성", "대기", "완료", "취소"];
+      return statuses[(index - 1) % statuses.length];
+    }
+    if (lower.includes("날짜") || lower.includes("일시")) return `2026-04-${String(10 + index).padStart(2, "0")}`;
+    if (lower.includes("가격") || lower.includes("금액")) return `${(index * 50000).toLocaleString()}`;
+    if (lower.includes("등급")) {
+      const grades = ["일반", "VIP", "VVIP"];
+      return grades[(index - 1) % grades.length];
+    }
+    return `${field} ${index}`;
   }
 
   private async updateAdminLayout(
