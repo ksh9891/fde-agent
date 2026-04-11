@@ -8,8 +8,7 @@ import { ClaudeCodeBuilder } from "./builder/claude-code.js";
 import { EvalPipeline } from "./evaluator/pipeline.js";
 import { BuildCheckEvaluator } from "./evaluator/build-check.js";
 import { UnitTestEvaluator } from "./evaluator/unit-test.js";
-import { ConsoleCheckEvaluator } from "./evaluator/console-check.js";
-import { E2EEvaluator } from "./evaluator/e2e.js";
+import { PageCheckEvaluator } from "./evaluator/page-check.js";
 import { loadIterationState } from "./resume.js";
 import { mainLoop } from "./loop.js";
 import { writeReport } from "./reporter.js";
@@ -70,11 +69,32 @@ async function main() {
 
   const builder = new ClaudeCodeBuilder({ systemPromptPath });
 
+  // Derive required pages from domain entities
+  const entitySlugMap: Record<string, string> = {
+    "예약": "reservations",
+    "객실": "rooms",
+    "고객": "customers",
+    "상품": "products",
+    "주문": "orders",
+    "회원": "members",
+    "문의": "inquiries",
+    "게시글": "posts",
+    "카테고리": "categories",
+    "설정": "settings",
+  };
+
+  const requiredPages = ["dashboard"];
+  for (const entity of evalSpec.domain.entities) {
+    const slug = entitySlugMap[entity.name] ?? entity.name.toLowerCase();
+    requiredPages.push(slug);
+  }
+
+  console.log(`[FDE-AGENT] Required pages: ${requiredPages.join(", ")}`);
+
   const pipeline = new EvalPipeline([
     new BuildCheckEvaluator(),
     new UnitTestEvaluator(),
-    new ConsoleCheckEvaluator(),
-    new E2EEvaluator(),
+    new PageCheckEvaluator(requiredPages),
   ]);
 
   // Handle resume vs fresh start
