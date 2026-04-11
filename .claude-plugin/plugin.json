@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "FDE Harness Agent — preset 기반 프로토타입 생성 + eval-driven 품질 검증",
   "author": {
-    "name": "FDE Team"
-  }
+    "name": "FDE Team",
+    "email": "fde@example.com"
+  },
+  "license": "MIT",
+  "keywords": ["fde", "prototype", "eval", "admin", "preset"]
 }
