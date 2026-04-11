@@ -1,0 +1,16 @@
+{
+  "name": "fde-agent-marketplace",
+  "description": "FDE Harness Agent — preset 기반 프로토타입 생성 + eval-driven 품질 검증",
+  "owner": {
+    "name": "FDE Team",
+    "email": "fde@example.com"
+  },
+  "plugins": [
+    {
+      "name": "fde-agent",
+      "description": "Eval spec을 받아 preset 기반 프로토타입을 생성하고 검증합니다",
+      "version": "0.1.0",
+      "source": "./"
+    }
+  ]
+}
