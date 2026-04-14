@@ -315,6 +315,36 @@ describe("EvalResultSchema", () => {
     const parsed = EvalResultSchema.safeParse(result);
     expect(parsed.success).toBe(false);
   });
+
+  it("validates page_check as a valid evaluator", () => {
+    const result = {
+      evaluator: "page_check" as const,
+      status: "pass" as const,
+      severity: "hard" as const,
+      failures: [],
+    };
+    const parsed = EvalResultSchema.safeParse(result);
+    expect(parsed.success).toBe(true);
+  });
+
+  it("validates EvalFailure with severity field", () => {
+    const result = {
+      evaluator: "build" as const,
+      status: "fail" as const,
+      severity: "hard" as const,
+      failures: [
+        {
+          id: "REQ-010",
+          message: "Build failed",
+          severity: "hard" as const,
+          evidence: ["error.log"],
+          repair_hint: "Fix the build",
+        },
+      ],
+    };
+    const parsed = EvalResultSchema.safeParse(result);
+    expect(parsed.success).toBe(true);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -396,5 +426,37 @@ describe("IterationStateSchema", () => {
     };
     const result = IterationStateSchema.safeParse(state);
     expect(result.success).toBe(false);
+  });
+
+  it("validates structured failure_details in history", () => {
+    const state = {
+      run_id: "run-details",
+      total_iterations: 2,
+      max_iterations: 10,
+      status: "running" as const,
+      resumable: true,
+      history: [
+        {
+          iteration: 1,
+          passed: ["REQ-001"],
+          failed: ["REQ-002"],
+          failure_details: [
+            { id: "REQ-002", message: "Page missing", hint: "Create the page" },
+          ],
+          status: "partial",
+        },
+        {
+          iteration: 2,
+          passed: ["REQ-001"],
+          failed: ["REQ-003"],
+          failure_details: [
+            { id: "REQ-003", message: "Build error" },
+          ],
+          status: "partial",
+        },
+      ],
+    };
+    const result = IterationStateSchema.safeParse(state);
+    expect(result.success).toBe(true);
   });
 });

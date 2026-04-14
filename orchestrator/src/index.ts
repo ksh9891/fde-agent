@@ -9,6 +9,9 @@ import { EvalPipeline } from "./evaluator/pipeline.js";
 import { BuildCheckEvaluator } from "./evaluator/build-check.js";
 import { UnitTestEvaluator } from "./evaluator/unit-test.js";
 import { PageCheckEvaluator } from "./evaluator/page-check.js";
+import { ConsoleCheckEvaluator } from "./evaluator/console-check.js";
+import { E2EEvaluator } from "./evaluator/e2e.js";
+import { TestGenerationStage } from "./test-generation-stage.js";
 import { loadIterationState } from "./resume.js";
 import { mainLoop } from "./loop.js";
 import { writeReport } from "./reporter.js";
@@ -69,6 +72,11 @@ async function main() {
 
   const builder = new ClaudeCodeBuilder({ systemPromptPath });
 
+  const testWriterPromptPath = resolve(pluginDir, "agents", "test-writer.md");
+  const testGenerationStage = new TestGenerationStage({
+    systemPromptPath: testWriterPromptPath,
+  });
+
   // Derive required pages from domain entities
   const entitySlugMap: Record<string, string> = {
     "예약": "reservations",
@@ -95,6 +103,8 @@ async function main() {
     new BuildCheckEvaluator(),
     new UnitTestEvaluator(),
     new PageCheckEvaluator(requiredPages),
+    new ConsoleCheckEvaluator(requiredPages.filter((p) => p !== "dashboard")),
+    new E2EEvaluator(evalSpec.requirements),
   ]);
 
   // Handle resume vs fresh start
@@ -137,13 +147,26 @@ async function main() {
     evalRunner,
     maxIterations: MAX_ITERATIONS,
     startIteration,
+    afterFirstBuild: async (ws) => {
+      console.log("[FDE-AGENT] Running Test Writer Agent for key_flow E2E tests...");
+      const result = await testGenerationStage.execute({
+        workspace: `${ws}/app`,
+        keyFlows: evalSpec.domain.key_flows,
+        entities: evalSpec.domain.entities,
+      });
+      if (result.success) {
+        console.log("[FDE-AGENT] key_flow E2E tests generated");
+      } else {
+        console.warn("[FDE-AGENT] Test Writer Agent failed (non-blocking):", result.output.slice(0, 200));
+      }
+    },
   });
 
   // Write report — run evaluators one more time to get final results for the report
   const finalResults = finalState.status === "completed"
     ? (await pipeline.runAll(workspace)).results
     : [];
-  await writeReport(workspace, finalState, finalResults, evalSpec.project);
+  await writeReport(workspace, finalState, finalResults, evalSpec);
 
   // Log results
   console.log(`[FDE-AGENT] Run complete`);

@@ -1,4 +1,24 @@
 import { z } from "zod";
+export declare const RequirementSchema: z.ZodObject<{
+    id: z.ZodString;
+    title: z.ZodString;
+    severity: z.ZodEnum<["hard", "soft"]>;
+    test_method: z.ZodEnum<["e2e", "build_check", "console_check", "unit_test"]>;
+    description: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    id: string;
+    title: string;
+    description: string;
+    severity: "hard" | "soft";
+    test_method: "e2e" | "build_check" | "console_check" | "unit_test";
+}, {
+    id: string;
+    title: string;
+    description: string;
+    severity: "hard" | "soft";
+    test_method: "e2e" | "build_check" | "console_check" | "unit_test";
+}>;
+export type Requirement = z.infer<typeof RequirementSchema>;
 export declare const EvalSpecSchema: z.ZodObject<{
     project: z.ZodString;
     preset: z.ZodString;
@@ -355,58 +375,66 @@ export type TaskContract = z.infer<typeof TaskContractSchema>;
 export declare const EvalFailureSchema: z.ZodObject<{
     id: z.ZodString;
     message: z.ZodString;
+    severity: z.ZodOptional<z.ZodEnum<["hard", "soft"]>>;
     evidence: z.ZodArray<z.ZodString, "many">;
     repair_hint: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     message: string;
     id: string;
     evidence: string[];
+    severity?: "hard" | "soft" | undefined;
     repair_hint?: string | undefined;
 }, {
     message: string;
     id: string;
     evidence: string[];
+    severity?: "hard" | "soft" | undefined;
     repair_hint?: string | undefined;
 }>;
 export type EvalFailure = z.infer<typeof EvalFailureSchema>;
 export declare const EvalResultSchema: z.ZodObject<{
-    evaluator: z.ZodEnum<["build", "unit_test", "console", "e2e"]>;
+    evaluator: z.ZodEnum<["build", "unit_test", "console", "e2e", "page_check"]>;
     status: z.ZodEnum<["pass", "fail"]>;
     severity: z.ZodEnum<["hard", "soft"]>;
     failures: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
         message: z.ZodString;
+        severity: z.ZodOptional<z.ZodEnum<["hard", "soft"]>>;
         evidence: z.ZodArray<z.ZodString, "many">;
         repair_hint: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         message: string;
         id: string;
         evidence: string[];
+        severity?: "hard" | "soft" | undefined;
         repair_hint?: string | undefined;
     }, {
         message: string;
         id: string;
         evidence: string[];
+        severity?: "hard" | "soft" | undefined;
         repair_hint?: string | undefined;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     status: "fail" | "pass";
     severity: "hard" | "soft";
-    evaluator: "e2e" | "unit_test" | "build" | "console";
+    evaluator: "e2e" | "unit_test" | "build" | "console" | "page_check";
     failures: {
         message: string;
         id: string;
         evidence: string[];
+        severity?: "hard" | "soft" | undefined;
         repair_hint?: string | undefined;
     }[];
 }, {
     status: "fail" | "pass";
     severity: "hard" | "soft";
-    evaluator: "e2e" | "unit_test" | "build" | "console";
+    evaluator: "e2e" | "unit_test" | "build" | "console" | "page_check";
     failures: {
         message: string;
         id: string;
         evidence: string[];
+        severity?: "hard" | "soft" | undefined;
         repair_hint?: string | undefined;
     }[];
 }>;
@@ -422,6 +450,19 @@ export declare const IterationStateSchema: z.ZodObject<{
         iteration: z.ZodNumber;
         passed: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
         failed: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+        failure_details: z.ZodOptional<z.ZodArray<z.ZodObject<{
+            id: z.ZodString;
+            message: z.ZodString;
+            hint: z.ZodOptional<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            message: string;
+            id: string;
+            hint?: string | undefined;
+        }, {
+            message: string;
+            id: string;
+            hint?: string | undefined;
+        }>, "many">>;
         status: z.ZodOptional<z.ZodString>;
         reason: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
@@ -430,12 +471,22 @@ export declare const IterationStateSchema: z.ZodObject<{
         failed?: string[] | undefined;
         status?: string | undefined;
         passed?: string[] | undefined;
+        failure_details?: {
+            message: string;
+            id: string;
+            hint?: string | undefined;
+        }[] | undefined;
     }, {
         iteration: number;
         reason?: string | undefined;
         failed?: string[] | undefined;
         status?: string | undefined;
         passed?: string[] | undefined;
+        failure_details?: {
+            message: string;
+            id: string;
+            hint?: string | undefined;
+        }[] | undefined;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     history: {
@@ -444,6 +495,11 @@ export declare const IterationStateSchema: z.ZodObject<{
         failed?: string[] | undefined;
         status?: string | undefined;
         passed?: string[] | undefined;
+        failure_details?: {
+            message: string;
+            id: string;
+            hint?: string | undefined;
+        }[] | undefined;
     }[];
     status: "completed" | "running" | "escalated";
     run_id: string;
@@ -458,6 +514,11 @@ export declare const IterationStateSchema: z.ZodObject<{
         failed?: string[] | undefined;
         status?: string | undefined;
         passed?: string[] | undefined;
+        failure_details?: {
+            message: string;
+            id: string;
+            hint?: string | undefined;
+        }[] | undefined;
     }[];
     status: "completed" | "running" | "escalated";
     run_id: string;

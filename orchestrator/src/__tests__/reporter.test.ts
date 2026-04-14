@@ -1,6 +1,16 @@
 import { describe, it, expect } from "vitest";
 import { generateSummary } from "../reporter.js";
-import type { EvalResult, IterationState } from "../types.js";
+import type { EvalResult, EvalSpec, IterationState } from "../types.js";
+
+const mockEvalSpec: EvalSpec = {
+  project: "test-project",
+  preset: "admin-web",
+  palette: "warm-neutral",
+  domain: { entities: [], key_flows: [] },
+  requirements: [],
+  data_source: { type: "mock" },
+  constraints: [],
+};
 
 const makeCompletedState = (): IterationState => ({
   run_id: "run_001",
@@ -35,20 +45,18 @@ const makeFinalResults = (): EvalResult[] => [
 ];
 
 describe("generateSummary", () => {
-  it("completed state: output should contain 통과, 3회 반복, PASS", () => {
+  it("completed state: output should contain 통과, PASS", () => {
     const state = makeCompletedState();
     const results = makeFinalResults();
-    const summary = generateSummary(state, results, "test-project");
-
+    const summary = generateSummary(state, results, mockEvalSpec);
     expect(summary).toContain("통과");
-    expect(summary).toContain("3회 반복");
     expect(summary).toContain("PASS");
+    expect(summary).toContain("test-project");
   });
 
   it("escalated state: output should contain Escalation, API_KEY, --resume", () => {
     const state = makeEscalatedState();
-    const summary = generateSummary(state, [], "test-project");
-
+    const summary = generateSummary(state, [], mockEvalSpec);
     expect(summary).toContain("Escalation");
     expect(summary).toContain("API_KEY");
     expect(summary).toContain("--resume");

@@ -14,13 +14,15 @@ const DomainSchema = z.object({
   key_flows: z.array(z.string()),
 });
 
-const RequirementSchema = z.object({
+export const RequirementSchema = z.object({
   id: z.string(),
   title: z.string(),
   severity: z.enum(["hard", "soft"]),
   test_method: z.enum(["e2e", "build_check", "console_check", "unit_test"]),
   description: z.string(),
 });
+
+export type Requirement = z.infer<typeof RequirementSchema>;
 
 const ExternalSecretSchema = z.object({
   name: z.string(),
@@ -117,6 +119,7 @@ export type TaskContract = z.infer<typeof TaskContractSchema>;
 export const EvalFailureSchema = z.object({
   id: z.string(),
   message: z.string(),
+  severity: z.enum(["hard", "soft"]).optional(),
   evidence: z.array(z.string()),
   repair_hint: z.string().optional(),
 });
@@ -124,7 +127,7 @@ export const EvalFailureSchema = z.object({
 export type EvalFailure = z.infer<typeof EvalFailureSchema>;
 
 export const EvalResultSchema = z.object({
-  evaluator: z.enum(["build", "unit_test", "console", "e2e"]),
+  evaluator: z.enum(["build", "unit_test", "console", "e2e", "page_check"]),
   status: z.enum(["pass", "fail"]),
   severity: z.enum(["hard", "soft"]),
   failures: z.array(EvalFailureSchema),
@@ -136,10 +139,17 @@ export type EvalResult = z.infer<typeof EvalResultSchema>;
 // IterationState
 // ---------------------------------------------------------------------------
 
+const FailureDetailSchema = z.object({
+  id: z.string(),
+  message: z.string(),
+  hint: z.string().optional(),
+});
+
 const HistoryEntrySchema = z.object({
   iteration: z.number(),
   passed: z.array(z.string()).optional(),
   failed: z.array(z.string()).optional(),
+  failure_details: z.array(FailureDetailSchema).optional(),
   status: z.string().optional(),
   reason: z.string().optional(),
 });

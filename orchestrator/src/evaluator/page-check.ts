@@ -5,7 +5,7 @@ import type { EvalResult, EvalFailure } from "../types.js";
 import type { Evaluator } from "./pipeline.js";
 
 export class PageCheckEvaluator implements Evaluator {
-  readonly name = "e2e" as const; // Uses e2e slot since it replaces Playwright E2E for MVP
+  readonly name = "page_check" as const;
 
   private requiredPages: string[];
 
@@ -21,7 +21,7 @@ export class PageCheckEvaluator implements Evaluator {
     // Check that admin directory exists
     if (!existsSync(adminDir)) {
       return {
-        evaluator: "e2e",
+        evaluator: "page_check",
         status: "fail",
         severity: "hard",
         failures: [
@@ -62,7 +62,7 @@ export class PageCheckEvaluator implements Evaluator {
 
     if (failures.length === 0) {
       return {
-        evaluator: "e2e",
+        evaluator: "page_check",
         status: "pass",
         severity: "hard",
         failures: [],
@@ -70,7 +70,7 @@ export class PageCheckEvaluator implements Evaluator {
     }
 
     return {
-      evaluator: "e2e",
+      evaluator: "page_check",
       status: "fail",
       severity: "hard",
       failures,
