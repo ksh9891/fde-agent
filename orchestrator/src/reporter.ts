@@ -38,6 +38,7 @@ interface FlowCoverageEntry {
   file: string;
   title: string;
   status: string;
+  requirementIds: string[];
 }
 
 export interface CoverageData {
@@ -83,10 +84,13 @@ export function buildCoverageFromSpecs(
   for (const spec of specs) {
     if (spec.file.includes("e2e/flows/")) {
       const fileName = spec.file.split("/").pop() ?? "";
+      const tagPattern = /@([A-Za-z]+-\d+)/g;
+      const requirementIds = [...spec.title.matchAll(tagPattern)].map((m) => m[1]);
       flowCoverage.push({
         file: fileName,
-        title: spec.title,
+        title: spec.title.replace(/@[A-Za-z]+-\d+/g, "").trim(),
         status: spec.status === "passed" ? "PASS" : "FAIL",
+        requirementIds,
       });
     }
   }
@@ -233,10 +237,11 @@ export function generateSummary(
     if (coverage.flowCoverage.length > 0) {
       lines.push("### key_flow");
       lines.push("");
-      lines.push("| Flow | 테스트 파일 | 결과 |");
-      lines.push("|------|------------|------|");
+      lines.push("| Flow | 테스트 파일 | Requirement | 결과 |");
+      lines.push("|------|------------|-------------|------|");
       for (const entry of coverage.flowCoverage) {
-        lines.push(`| ${entry.title} | ${entry.file} | ${entry.status} |`);
+        const reqIds = entry.requirementIds.length > 0 ? entry.requirementIds.join(", ") : "-";
+        lines.push(`| ${entry.title} | ${entry.file} | ${reqIds} | ${entry.status} |`);
       }
       lines.push("");
     }

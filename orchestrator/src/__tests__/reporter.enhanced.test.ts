@@ -101,6 +101,15 @@ describe("generateSummary (enhanced)", () => {
     expect(summary).toContain("reservation-create.spec.ts");
   });
 
+  it("includes requirement ids in flow coverage table when playwrightSpecs have tags", () => {
+    const specs: PlaywrightSpecInfo[] = [
+      { file: "e2e/flows/reservation-create.spec.ts", title: "신규 예약 등록 @FR-001", status: "passed" },
+    ];
+    const summary = generateSummary(completedState, finalResults, mockEvalSpec, specs);
+    expect(summary).toContain("FR-001");
+    expect(summary).toContain("Requirement");
+  });
+
   it("escalated state includes escalation reason", () => {
     const escalatedState: IterationState = {
       ...completedState,
@@ -136,8 +145,8 @@ describe("buildCoverageFromSpecs", () => {
     { file: "e2e/reservations-list.spec.ts", title: "예약 목록 조회", status: "passed" },
     { file: "e2e/reservations-detail.spec.ts", title: "예약 상세", status: "passed" },
     { file: "e2e/reservations-form.spec.ts", title: "예약 등록 폼", status: "passed" },
-    { file: "e2e/flows/reservation-create.spec.ts", title: "신규 예약 등록", status: "passed" },
-    { file: "e2e/flows/reservation-list-filter.spec.ts", title: "예약 목록 조회", status: "failed" },
+    { file: "e2e/flows/reservation-create.spec.ts", title: "신규 예약 등록 @FR-001", status: "passed" },
+    { file: "e2e/flows/reservation-list-filter.spec.ts", title: "예약 목록 조회 @FR-002", status: "failed" },
   ];
 
   it("maps template tests to entity coverage table", () => {
@@ -153,12 +162,16 @@ describe("buildCoverageFromSpecs", () => {
     expect(reservations?.form).toBe("PASS");
   });
 
-  it("maps flow tests to key_flow coverage table", () => {
+  it("maps flow tests to key_flow coverage table with requirementIds", () => {
     const coverage = buildCoverageFromSpecs(mockPlaywrightSpecs, mockEvalSpec);
     expect(coverage.flowCoverage).toHaveLength(2);
+
     const create = coverage.flowCoverage.find((c) => c.file === "reservation-create.spec.ts");
     expect(create?.status).toBe("PASS");
+    expect(create?.requirementIds).toEqual(["FR-001"]);
+
     const filter = coverage.flowCoverage.find((c) => c.file === "reservation-list-filter.spec.ts");
     expect(filter?.status).toBe("FAIL");
+    expect(filter?.requirementIds).toEqual(["FR-002"]);
   });
 });
