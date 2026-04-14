@@ -345,6 +345,37 @@ describe("EvalResultSchema", () => {
     const parsed = EvalResultSchema.safeParse(result);
     expect(parsed.success).toBe(true);
   });
+
+  it("validates EvalResult with optional stats field", () => {
+    const result = {
+      evaluator: "e2e" as const,
+      status: "pass" as const,
+      severity: "soft" as const,
+      failures: [],
+      stats: { total: 16, passed: 16, failed: 0 },
+    };
+    const parsed = EvalResultSchema.safeParse(result);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.stats?.total).toBe(16);
+      expect(parsed.data.stats?.passed).toBe(16);
+      expect(parsed.data.stats?.failed).toBe(0);
+    }
+  });
+
+  it("validates EvalResult without stats (backward compatible)", () => {
+    const result = {
+      evaluator: "build" as const,
+      status: "pass" as const,
+      severity: "hard" as const,
+      failures: [],
+    };
+    const parsed = EvalResultSchema.safeParse(result);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.stats).toBeUndefined();
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------

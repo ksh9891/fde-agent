@@ -131,6 +131,11 @@ export const EvalResultSchema = z.object({
   status: z.enum(["pass", "fail"]),
   severity: z.enum(["hard", "soft"]),
   failures: z.array(EvalFailureSchema),
+  stats: z.object({
+    total: z.number(),
+    passed: z.number(),
+    failed: z.number(),
+  }).optional(),
 });
 
 export type EvalResult = z.infer<typeof EvalResultSchema>;
