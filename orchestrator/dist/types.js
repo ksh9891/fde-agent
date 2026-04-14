@@ -96,11 +96,12 @@ export const TaskContractSchema = z.object({
 export const EvalFailureSchema = z.object({
     id: z.string(),
     message: z.string(),
+    severity: z.enum(["hard", "soft"]).optional(),
     evidence: z.array(z.string()),
     repair_hint: z.string().optional(),
 });
 export const EvalResultSchema = z.object({
-    evaluator: z.enum(["build", "unit_test", "console", "e2e"]),
+    evaluator: z.enum(["build", "unit_test", "console", "e2e", "page_check"]),
     status: z.enum(["pass", "fail"]),
     severity: z.enum(["hard", "soft"]),
     failures: z.array(EvalFailureSchema),
@@ -108,10 +109,16 @@ export const EvalResultSchema = z.object({
 // ---------------------------------------------------------------------------
 // IterationState
 // ---------------------------------------------------------------------------
+const FailureDetailSchema = z.object({
+    id: z.string(),
+    message: z.string(),
+    hint: z.string().optional(),
+});
 const HistoryEntrySchema = z.object({
     iteration: z.number(),
     passed: z.array(z.string()).optional(),
     failed: z.array(z.string()).optional(),
+    failure_details: z.array(FailureDetailSchema).optional(),
     status: z.string().optional(),
     reason: z.string().optional(),
 });

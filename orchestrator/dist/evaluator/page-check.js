@@ -1,7 +1,7 @@
 import { existsSync } from "fs";
 import { join } from "path";
 export class PageCheckEvaluator {
-    name = "e2e"; // Uses e2e slot since it replaces Playwright E2E for MVP
+    name = "page_check";
     requiredPages;
     constructor(requiredPages) {
         this.requiredPages = requiredPages;
@@ -13,7 +13,7 @@ export class PageCheckEvaluator {
         // Check that admin directory exists
         if (!existsSync(adminDir)) {
             return {
-                evaluator: "e2e",
+                evaluator: "page_check",
                 status: "fail",
                 severity: "hard",
                 failures: [
@@ -52,14 +52,14 @@ export class PageCheckEvaluator {
         }
         if (failures.length === 0) {
             return {
-                evaluator: "e2e",
+                evaluator: "page_check",
                 status: "pass",
                 severity: "hard",
                 failures: [],
             };
         }
         return {
-            evaluator: "e2e",
+            evaluator: "page_check",
             status: "fail",
             severity: "hard",
             failures,
