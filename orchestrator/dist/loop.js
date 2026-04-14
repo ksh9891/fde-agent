@@ -16,6 +16,10 @@ export async function mainLoop(input) {
         });
         // 2. Execute builder
         await builder.execute(taskContract);
+        // After first build (fresh run only), run post-build hooks
+        if (iteration === 1 && startIteration === 1 && input.afterFirstBuild) {
+            await input.afterFirstBuild(workspace);
+        }
         // 3. Run evaluators
         const pipelineResult = await evalRunner(workspace);
         // Collect failure ids for history
@@ -23,8 +27,9 @@ export async function mainLoop(input) {
         const passedEvaluators = pipelineResult.results
             .filter((r) => r.status === "pass")
             .map((r) => r.evaluator);
-        // 4. Check for env_issue → escalate immediately
+        // Collect all individual failures (for history + classification)
         const allFailures = pipelineResult.failures.flatMap((r) => r.failures);
+        // 4. Check for env_issue → escalate immediately
         const hasEnvIssue = allFailures.some((failure) => classifyFailure(failure) === "env_issue");
         if (hasEnvIssue) {
             const envFailure = allFailures.find((failure) => classifyFailure(failure) === "env_issue");
@@ -32,6 +37,11 @@ export async function mainLoop(input) {
                 iteration,
                 passed: passedEvaluators,
                 failed: failedIds,
+                failure_details: allFailures.map((f) => ({
+                    id: f.id,
+                    message: f.message,
+                    hint: f.repair_hint,
+                })),
                 status: "escalated",
                 reason: "env_issue",
             });
@@ -51,6 +61,7 @@ export async function mainLoop(input) {
                 iteration,
                 passed: passedEvaluators,
                 failed: failedIds,
+                failure_details: [],
                 status: "completed",
             });
             return {
@@ -67,6 +78,11 @@ export async function mainLoop(input) {
             iteration,
             passed: passedEvaluators,
             failed: failedIds,
+            failure_details: allFailures.map((f) => ({
+                id: f.id,
+                message: f.message,
+                hint: f.repair_hint,
+            })),
             status: "running",
         });
         previousFailures = pipelineResult.failures;

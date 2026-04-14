@@ -1,4 +1,4 @@
-import { mkdir, cp, writeFile } from "fs/promises";
+import { mkdir, cp, writeFile, readFile } from "fs/promises";
 import { join, resolve } from "path";
 import { existsSync } from "fs";
 import { execa } from "execa";
@@ -33,6 +33,8 @@ export class Provisioner {
             console.log("[FDE-AGENT] Installing dependencies in workspace...");
             await execa("npm", ["install"], { cwd: appDir, timeout: 120_000 });
             console.log("[FDE-AGENT] Dependencies installed");
+            // Install Playwright browser
+            await this.installPlaywrightBrowser(appDir);
         }
         // Copy palette if exists
         const palettePath = join(this.palettesDir, `${input.palette}.json`);
@@ -49,6 +51,13 @@ export class Provisioner {
             console.log("[FDE-AGENT] Generating entity page skeletons...");
             await this.generateEntitySkeletons(appDir, input.entities, input.entitySlugMap ?? {});
             console.log("[FDE-AGENT] Entity skeletons generated");
+            // Generate template E2E tests
+            const testPackDir = join(this.presetsDir, input.preset, "test-pack", "scenarios");
+            if (existsSync(testPackDir)) {
+                console.log("[FDE-AGENT] Generating template E2E tests...");
+                await this.generateTemplateE2ETests(appDir, input.entities, input.entitySlugMap ?? {}, testPackDir);
+                console.log("[FDE-AGENT] Template E2E tests generated");
+            }
         }
         return workspace;
     }
@@ -466,6 +475,65 @@ export default function AdminLayoutWrapper({
 }
 `;
         await writeFile(layoutPath, layoutContent);
+    }
+    async installPlaywrightBrowser(appDir) {
+        console.log("[FDE-AGENT] Installing Playwright Chromium browser...");
+        try {
+            await execa("npx", ["playwright", "install", "chromium"], {
+                cwd: appDir,
+                timeout: 120_000,
+            });
+            console.log("[FDE-AGENT] Playwright Chromium installed");
+        }
+        catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            throw new Error(`env_issue: Playwright browser install failed — ${message}`);
+        }
+    }
+    async generateTemplateE2ETests(appDir, entities, slugMap, testPackDir) {
+        const e2eDir = join(appDir, "e2e");
+        await mkdir(e2eDir, { recursive: true });
+        // Copy dashboard template as-is
+        const dashboardTemplate = join(testPackDir, "dashboard.template.ts");
+        if (existsSync(dashboardTemplate)) {
+            const content = await readFile(dashboardTemplate, "utf-8");
+            await writeFile(join(e2eDir, "dashboard.spec.ts"), content);
+        }
+        // Generate per-entity E2E tests from templates
+        for (const entity of entities) {
+            const slug = slugMap[entity.name] ?? entity.name.toLowerCase();
+            // list-view
+            const listTemplate = join(testPackDir, "list-view.template.ts");
+            if (existsSync(listTemplate)) {
+                let content = await readFile(listTemplate, "utf-8");
+                content = content.replace("'__ENTITY_NAME__'", `'${entity.name}'`);
+                content = content.replace("'__ENTITY_PATH__'", `'/${slug}'`);
+                content = content.replace("'__SEARCH_FIELD__'", `'${entity.fields[0]}'`);
+                await writeFile(join(e2eDir, `${slug}-list.spec.ts`), content);
+            }
+            // detail-view
+            const detailTemplate = join(testPackDir, "detail-view.template.ts");
+            if (existsSync(detailTemplate)) {
+                let content = await readFile(detailTemplate, "utf-8");
+                content = content.replace("'__ENTITY_NAME__'", `'${entity.name}'`);
+                content = content.replace("'__DETAIL_PATH__'", `'/${slug}/1'`);
+                await writeFile(join(e2eDir, `${slug}-detail.spec.ts`), content);
+            }
+            // form-submit
+            const formTemplate = join(testPackDir, "form-submit.template.ts");
+            if (existsSync(formTemplate)) {
+                let content = await readFile(formTemplate, "utf-8");
+                content = content.replace("'__ENTITY_NAME__'", `'${entity.name}'`);
+                content = content.replace("'__FORM_PATH__'", `'/${slug}/new'`);
+                // Replace REQUIRED_FIELDS with actual field data (first 3 fields)
+                const fieldsToUse = entity.fields.slice(0, 3);
+                const fieldEntries = fieldsToUse
+                    .map((f) => `  { label: "${f}", value: "테스트 ${f}" },`)
+                    .join("\n");
+                content = content.replace(/const REQUIRED_FIELDS: \{ label: string; value: string \}\[\] = \[\n\s*\/\/ Test Writer fills these in\n\];/, `const REQUIRED_FIELDS: { label: string; value: string }[] = [\n${fieldEntries}\n];`);
+                await writeFile(join(e2eDir, `${slug}-form.spec.ts`), content);
+            }
+        }
     }
     toFieldKey(koreanField) {
         // Simple Korean field name to camelCase key mapping

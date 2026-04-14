@@ -1,4 +1,24 @@
 import { z } from "zod";
+export declare const RequirementSchema: z.ZodObject<{
+    id: z.ZodString;
+    title: z.ZodString;
+    severity: z.ZodEnum<["hard", "soft"]>;
+    test_method: z.ZodEnum<["e2e", "build_check", "console_check", "unit_test"]>;
+    description: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    id: string;
+    title: string;
+    description: string;
+    severity: "hard" | "soft";
+    test_method: "e2e" | "build_check" | "console_check" | "unit_test";
+}, {
+    id: string;
+    title: string;
+    description: string;
+    severity: "hard" | "soft";
+    test_method: "e2e" | "build_check" | "console_check" | "unit_test";
+}>;
+export type Requirement = z.infer<typeof RequirementSchema>;
 export declare const EvalSpecSchema: z.ZodObject<{
     project: z.ZodString;
     preset: z.ZodString;

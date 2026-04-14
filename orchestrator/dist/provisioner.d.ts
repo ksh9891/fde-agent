@@ -29,6 +29,8 @@ export declare class Provisioner {
     private generateGenericValue;
     private generateSeedRoute;
     private updateAdminLayout;
+    private installPlaywrightBrowser;
+    private generateTemplateE2ETests;
     private toFieldKey;
 }
 export {};

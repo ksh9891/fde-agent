@@ -1,3 +1,3 @@
-import type { EvalResult, IterationState } from "./types.js";
-export declare function generateSummary(state: IterationState, finalResults: EvalResult[], projectName: string): string;
-export declare function writeReport(workspace: string, state: IterationState, finalResults: EvalResult[], projectName: string): Promise<void>;
+import type { EvalResult, EvalSpec, IterationState } from "./types.js";
+export declare function generateSummary(state: IterationState, finalResults: EvalResult[], evalSpec: EvalSpec): string;
+export declare function writeReport(workspace: string, state: IterationState, finalResults: EvalResult[], evalSpec: EvalSpec): Promise<void>;

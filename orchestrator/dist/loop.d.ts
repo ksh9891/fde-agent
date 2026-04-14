@@ -9,6 +9,7 @@ interface MainLoopInput {
     evalRunner: (workspace: string) => Promise<PipelineResult>;
     maxIterations: number;
     startIteration: number;
+    afterFirstBuild?: (workspace: string) => Promise<void>;
 }
 export declare function mainLoop(input: MainLoopInput): Promise<IterationState>;
 export {};

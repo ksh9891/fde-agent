@@ -10,7 +10,7 @@ const DomainSchema = z.object({
     entities: z.array(EntitySchema),
     key_flows: z.array(z.string()),
 });
-const RequirementSchema = z.object({
+export const RequirementSchema = z.object({
     id: z.string(),
     title: z.string(),
     severity: z.enum(["hard", "soft"]),
