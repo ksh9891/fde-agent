@@ -14,13 +14,15 @@ const DomainSchema = z.object({
   key_flows: z.array(z.string()),
 });
 
-const RequirementSchema = z.object({
+export const RequirementSchema = z.object({
   id: z.string(),
   title: z.string(),
   severity: z.enum(["hard", "soft"]),
   test_method: z.enum(["e2e", "build_check", "console_check", "unit_test"]),
   description: z.string(),
 });
+
+export type Requirement = z.infer<typeof RequirementSchema>;
 
 const ExternalSecretSchema = z.object({
   name: z.string(),
