@@ -5,6 +5,7 @@ interface ProvisionerOptions {
 }
 interface EntityDef {
     name: string;
+    slug: string;
     fields: string[];
 }
 interface ProvisionInput {
@@ -12,7 +13,6 @@ interface ProvisionInput {
     preset: string;
     palette: string;
     entities?: EntityDef[];
-    entitySlugMap?: Record<string, string>;
 }
 export declare class Provisioner {
     private workspaceRoot;

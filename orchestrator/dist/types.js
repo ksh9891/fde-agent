@@ -4,6 +4,7 @@ import { z } from "zod";
 // ---------------------------------------------------------------------------
 const EntitySchema = z.object({
     name: z.string(),
+    slug: z.string(),
     fields: z.array(z.string()),
 });
 const DomainSchema = z.object({
@@ -16,6 +17,7 @@ export const RequirementSchema = z.object({
     severity: z.enum(["hard", "soft"]),
     test_method: z.enum(["e2e", "build_check", "console_check", "unit_test"]),
     description: z.string(),
+    acceptance_criteria: z.array(z.string()).optional(),
 });
 const ExternalSecretSchema = z.object({
     name: z.string(),
@@ -105,6 +107,11 @@ export const EvalResultSchema = z.object({
     status: z.enum(["pass", "fail"]),
     severity: z.enum(["hard", "soft"]),
     failures: z.array(EvalFailureSchema),
+    stats: z.object({
+        total: z.number(),
+        passed: z.number(),
+        failed: z.number(),
+    }).optional(),
 });
 // ---------------------------------------------------------------------------
 // IterationState

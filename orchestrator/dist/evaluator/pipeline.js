@@ -1,4 +1,4 @@
-const BLOCKING_EVALUATORS = new Set(["build", "unit_test"]);
+const BLOCKING_EVALUATORS = new Set(["build", "unit_test", "page_check"]);
 export class EvalPipeline {
     evaluators;
     constructor(evaluators) {

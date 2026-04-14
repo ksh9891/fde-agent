@@ -5,18 +5,21 @@ export declare const RequirementSchema: z.ZodObject<{
     severity: z.ZodEnum<["hard", "soft"]>;
     test_method: z.ZodEnum<["e2e", "build_check", "console_check", "unit_test"]>;
     description: z.ZodString;
+    acceptance_criteria: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
 }, "strip", z.ZodTypeAny, {
     id: string;
     title: string;
     description: string;
     severity: "hard" | "soft";
     test_method: "e2e" | "build_check" | "console_check" | "unit_test";
+    acceptance_criteria?: string[] | undefined;
 }, {
     id: string;
     title: string;
     description: string;
     severity: "hard" | "soft";
     test_method: "e2e" | "build_check" | "console_check" | "unit_test";
+    acceptance_criteria?: string[] | undefined;
 }>;
 export type Requirement = z.infer<typeof RequirementSchema>;
 export declare const EvalSpecSchema: z.ZodObject<{
@@ -26,24 +29,29 @@ export declare const EvalSpecSchema: z.ZodObject<{
     domain: z.ZodObject<{
         entities: z.ZodArray<z.ZodObject<{
             name: z.ZodString;
+            slug: z.ZodString;
             fields: z.ZodArray<z.ZodString, "many">;
         }, "strip", z.ZodTypeAny, {
             name: string;
+            slug: string;
             fields: string[];
         }, {
             name: string;
+            slug: string;
             fields: string[];
         }>, "many">;
         key_flows: z.ZodArray<z.ZodString, "many">;
     }, "strip", z.ZodTypeAny, {
         entities: {
             name: string;
+            slug: string;
             fields: string[];
         }[];
         key_flows: string[];
     }, {
         entities: {
             name: string;
+            slug: string;
             fields: string[];
         }[];
         key_flows: string[];
@@ -54,18 +62,21 @@ export declare const EvalSpecSchema: z.ZodObject<{
         severity: z.ZodEnum<["hard", "soft"]>;
         test_method: z.ZodEnum<["e2e", "build_check", "console_check", "unit_test"]>;
         description: z.ZodString;
+        acceptance_criteria: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
     }, "strip", z.ZodTypeAny, {
         id: string;
         title: string;
         description: string;
         severity: "hard" | "soft";
         test_method: "e2e" | "build_check" | "console_check" | "unit_test";
+        acceptance_criteria?: string[] | undefined;
     }, {
         id: string;
         title: string;
         description: string;
         severity: "hard" | "soft";
         test_method: "e2e" | "build_check" | "console_check" | "unit_test";
+        acceptance_criteria?: string[] | undefined;
     }>, "many">;
     data_source: z.ZodDiscriminatedUnion<"type", [z.ZodObject<{
         type: z.ZodLiteral<"mock">;
@@ -202,6 +213,7 @@ export declare const EvalSpecSchema: z.ZodObject<{
     domain: {
         entities: {
             name: string;
+            slug: string;
             fields: string[];
         }[];
         key_flows: string[];
@@ -212,6 +224,7 @@ export declare const EvalSpecSchema: z.ZodObject<{
         description: string;
         severity: "hard" | "soft";
         test_method: "e2e" | "build_check" | "console_check" | "unit_test";
+        acceptance_criteria?: string[] | undefined;
     }[];
     data_source: {
         type: "mock";
@@ -254,6 +267,7 @@ export declare const EvalSpecSchema: z.ZodObject<{
     domain: {
         entities: {
             name: string;
+            slug: string;
             fields: string[];
         }[];
         key_flows: string[];
@@ -264,6 +278,7 @@ export declare const EvalSpecSchema: z.ZodObject<{
         description: string;
         severity: "hard" | "soft";
         test_method: "e2e" | "build_check" | "console_check" | "unit_test";
+        acceptance_criteria?: string[] | undefined;
     }[];
     data_source: {
         type: "mock";
@@ -311,24 +326,29 @@ export declare const TaskContractSchema: z.ZodObject<{
     domain: z.ZodObject<{
         entities: z.ZodArray<z.ZodObject<{
             name: z.ZodString;
+            slug: z.ZodString;
             fields: z.ZodArray<z.ZodString, "many">;
         }, "strip", z.ZodTypeAny, {
             name: string;
+            slug: string;
             fields: string[];
         }, {
             name: string;
+            slug: string;
             fields: string[];
         }>, "many">;
         key_flows: z.ZodArray<z.ZodString, "many">;
     }, "strip", z.ZodTypeAny, {
         entities: {
             name: string;
+            slug: string;
             fields: string[];
         }[];
         key_flows: string[];
     }, {
         entities: {
             name: string;
+            slug: string;
             fields: string[];
         }[];
         key_flows: string[];
@@ -342,6 +362,7 @@ export declare const TaskContractSchema: z.ZodObject<{
     domain: {
         entities: {
             name: string;
+            slug: string;
             fields: string[];
         }[];
         key_flows: string[];
@@ -359,6 +380,7 @@ export declare const TaskContractSchema: z.ZodObject<{
     domain: {
         entities: {
             name: string;
+            slug: string;
             fields: string[];
         }[];
         key_flows: string[];
@@ -415,6 +437,19 @@ export declare const EvalResultSchema: z.ZodObject<{
         severity?: "hard" | "soft" | undefined;
         repair_hint?: string | undefined;
     }>, "many">;
+    stats: z.ZodOptional<z.ZodObject<{
+        total: z.ZodNumber;
+        passed: z.ZodNumber;
+        failed: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        total: number;
+        failed: number;
+        passed: number;
+    }, {
+        total: number;
+        failed: number;
+        passed: number;
+    }>>;
 }, "strip", z.ZodTypeAny, {
     status: "fail" | "pass";
     severity: "hard" | "soft";
@@ -426,6 +461,11 @@ export declare const EvalResultSchema: z.ZodObject<{
         severity?: "hard" | "soft" | undefined;
         repair_hint?: string | undefined;
     }[];
+    stats?: {
+        total: number;
+        failed: number;
+        passed: number;
+    } | undefined;
 }, {
     status: "fail" | "pass";
     severity: "hard" | "soft";
@@ -437,6 +477,11 @@ export declare const EvalResultSchema: z.ZodObject<{
         severity?: "hard" | "soft" | undefined;
         repair_hint?: string | undefined;
     }[];
+    stats?: {
+        total: number;
+        failed: number;
+        passed: number;
+    } | undefined;
 }>;
 export type EvalResult = z.infer<typeof EvalResultSchema>;
 export declare const IterationStateSchema: z.ZodObject<{

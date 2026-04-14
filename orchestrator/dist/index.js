@@ -64,22 +64,9 @@ async function main() {
         systemPromptPath: testWriterPromptPath,
     });
     // Derive required pages from domain entities
-    const entitySlugMap = {
-        "예약": "reservations",
-        "객실": "rooms",
-        "고객": "customers",
-        "상품": "products",
-        "주문": "orders",
-        "회원": "members",
-        "문의": "inquiries",
-        "게시글": "posts",
-        "카테고리": "categories",
-        "설정": "settings",
-    };
     const requiredPages = ["dashboard"];
     for (const entity of evalSpec.domain.entities) {
-        const slug = entitySlugMap[entity.name] ?? entity.name.toLowerCase();
-        requiredPages.push(slug);
+        requiredPages.push(entity.slug);
     }
     console.log(`[FDE-AGENT] Required pages: ${requiredPages.join(", ")}`);
     const pipeline = new EvalPipeline([
@@ -109,7 +96,6 @@ async function main() {
             preset: evalSpec.preset,
             palette: evalSpec.palette,
             entities: evalSpec.domain.entities,
-            entitySlugMap: entitySlugMap,
         });
         startIteration = 1;
     }
@@ -130,13 +116,20 @@ async function main() {
                 workspace: `${ws}/app`,
                 keyFlows: evalSpec.domain.key_flows,
                 entities: evalSpec.domain.entities,
+                requirements: evalSpec.requirements
+                    .filter((r) => r.test_method === "e2e")
+                    .map((r) => ({ id: r.id, title: r.title, severity: r.severity, acceptance_criteria: r.acceptance_criteria })),
             });
             if (result.success) {
                 console.log("[FDE-AGENT] key_flow E2E tests generated");
+                return;
             }
-            else {
-                console.warn("[FDE-AGENT] Test Writer Agent failed (non-blocking):", result.output.slice(0, 200));
+            const hasHardE2E = evalSpec.requirements.some((r) => r.test_method === "e2e" && r.severity === "hard");
+            if (hasHardE2E) {
+                throw new Error("env_issue: Test Writer Agent failed — cannot verify hard e2e requirements: " +
+                    result.output.slice(0, 200));
             }
+            console.warn("[FDE-AGENT] Test Writer Agent failed (non-blocking — no hard e2e requirements):", result.output.slice(0, 200));
         },
     });
     // Write report — run evaluators one more time to get final results for the report

@@ -1,13 +1,19 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { execa } from "execa";
-/**
- * Map a Playwright spec title to the severity of the matching eval-spec requirement.
- * Only requirements with `test_method === "e2e"` are considered.
- * If the requirement title is a substring of the spec title, it matches.
- * Default: "soft" (template / unknown tests).
- */
 export function mapFailureSeverity(specTitle, requirements) {
+    // 1. Tag-based matching (@FR-001 등)
+    const tagPattern = /@([A-Za-z]+-\d+)/g;
+    const tags = [...specTitle.matchAll(tagPattern)].map((m) => m[1]);
+    if (tags.length > 0) {
+        for (const tag of tags) {
+            const req = requirements.find((r) => r.id === tag);
+            if (req?.severity === "hard")
+                return "hard";
+        }
+        return "soft"; // tags found but none are hard
+    }
+    // 2. Fallback: title substring matching (legacy/template tests)
     const e2eReqs = requirements.filter((r) => r.test_method === "e2e");
     for (const req of e2eReqs) {
         if (specTitle.includes(req.title)) {
@@ -16,25 +22,29 @@ export function mapFailureSeverity(specTitle, requirements) {
     }
     return "soft";
 }
-function collectFailedSpecs(suites, failures, index, requirements) {
+export function collectAllSpecs(suites, failures, stats, requirements) {
     for (const suite of suites) {
         if (suite.specs) {
             for (const spec of suite.specs) {
+                stats.total += 1;
                 if (spec.status === "failed" || spec.status === "timedOut") {
-                    index.count += 1;
+                    stats.failed += 1;
                     const severity = mapFailureSeverity(spec.title, requirements);
                     failures.push({
-                        id: `e2e_failure_${index.count}`,
+                        id: `e2e_failure_${stats.failed}`,
                         message: `E2E spec failed: ${spec.title}`,
                         severity,
                         evidence: spec.error?.message ? [spec.error.message] : [],
                         repair_hint: "Fix the failing E2E test scenario",
                     });
                 }
+                else if (spec.status === "passed" || spec.status === "expected") {
+                    stats.passed += 1;
+                }
             }
         }
         if (suite.suites) {
-            collectFailedSpecs(suite.suites, failures, index, requirements);
+            collectAllSpecs(suite.suites, failures, stats, requirements);
         }
     }
 }
@@ -47,10 +57,8 @@ export class E2EEvaluator {
     async run(workspace) {
         const appDir = `${workspace}/app`;
         let report = {};
-        // Try reading from file first, fall back to stdout parsing
         const reportPath = join(appDir, "playwright-report", "results.json");
         try {
-            // Run e2e tests via npm script (120s timeout)
             await execa("npm", ["run", "test:e2e"], {
                 cwd: appDir,
                 reject: false,
@@ -61,7 +69,6 @@ export class E2EEvaluator {
         catch {
             // Test runner may exit non-zero on failures; we parse the report regardless
         }
-        // Try to read the report file first
         let parsed = false;
         try {
             const reportJson = await readFile(reportPath, "utf-8");
@@ -69,9 +76,8 @@ export class E2EEvaluator {
             parsed = true;
         }
         catch {
-            // File not found or invalid — fall back to stdout parsing below
+            // File not found or invalid
         }
-        // Fall back: re-run with JSON reporter to stdout
         if (!parsed) {
             let rawOutput = "";
             try {
@@ -92,40 +98,69 @@ export class E2EEvaluator {
                 return {
                     evaluator: "e2e",
                     status: "fail",
-                    severity: "soft",
-                    failures: [
-                        {
+                    severity: "hard",
+                    failures: [{
                             id: "e2e_parse_error",
                             message: "Failed to parse Playwright JSON report",
                             evidence: rawOutput ? [rawOutput.slice(0, 500)] : [],
-                        },
-                    ],
+                        }],
+                    stats: { total: 0, passed: 0, failed: 0 },
                 };
             }
         }
-        const failures = [];
-        const index = { count: 0 };
-        if (report.suites) {
-            collectFailedSpecs(report.suites, failures, index, this.requirements);
+        // Guard: no suites → test runner failed silently
+        if (!report.suites || report.suites.length === 0) {
+            const topErrors = (report.errors ?? [])
+                .map((e) => e.message ?? "unknown error")
+                .join("; ");
+            return {
+                evaluator: "e2e",
+                status: "fail",
+                severity: "hard",
+                failures: [{
+                        id: "e2e_no_results",
+                        message: "Playwright test runner produced no results",
+                        evidence: topErrors ? [topErrors] : [],
+                        repair_hint: "Check playwright.config.ts and ensure e2e/ directory has test files",
+                    }],
+                stats: { total: 0, passed: 0, failed: 0 },
+            };
         }
-        // Surface top-level errors (e.g. config issues)
+        const failures = [];
+        const stats = { total: 0, passed: 0, failed: 0 };
+        collectAllSpecs(report.suites, failures, stats, this.requirements);
+        // Guard: suites exist but 0 specs
+        if (stats.total === 0) {
+            return {
+                evaluator: "e2e",
+                status: "fail",
+                severity: "hard",
+                failures: [{
+                        id: "e2e_no_tests",
+                        message: "No E2E tests were executed (0 specs found in report)",
+                        evidence: [],
+                        repair_hint: "Ensure e2e/ directory contains .spec.ts files and playwright.config.ts testDir is correct",
+                    }],
+                stats: { total: 0, passed: 0, failed: 0 },
+            };
+        }
         if (report.errors) {
             for (const err of report.errors) {
-                index.count += 1;
+                stats.failed += 1;
                 failures.push({
-                    id: `e2e_error_${index.count}`,
+                    id: `e2e_error_${stats.failed}`,
                     message: "Playwright encountered a global error",
                     evidence: err.message ? [err.message] : [],
                 });
             }
         }
-        // Overall severity: "hard" if ANY failure has severity "hard", else "soft"
         const hasHardFailure = failures.some((f) => f.severity === "hard");
         return {
             evaluator: "e2e",
             status: failures.length === 0 ? "pass" : "fail",
             severity: hasHardFailure ? "hard" : "soft",
             failures,
+            stats,
         };
     }
 }

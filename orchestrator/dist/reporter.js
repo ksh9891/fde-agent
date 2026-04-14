@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile, readFile } from "node:fs/promises";
 import { join } from "node:path";
 // ---------------------------------------------------------------------------
 // Helpers
@@ -13,10 +13,45 @@ function formatStatus(status) {
             return "실행 중";
     }
 }
+export function buildCoverageFromSpecs(specs, evalSpec) {
+    const templateCoverage = [];
+    for (const entity of evalSpec.domain.entities) {
+        const slug = entity.slug;
+        const entry = { entity: entity.name, list: "-", detail: "-", form: "-" };
+        for (const spec of specs) {
+            const fileName = spec.file.split("/").pop() ?? "";
+            if (fileName === `${slug}-list.spec.ts`) {
+                entry.list = spec.status === "passed" ? "PASS" : "FAIL";
+            }
+            else if (fileName === `${slug}-detail.spec.ts`) {
+                entry.detail = spec.status === "passed" ? "PASS" : "FAIL";
+            }
+            else if (fileName === `${slug}-form.spec.ts`) {
+                entry.form = spec.status === "passed" ? "PASS" : "FAIL";
+            }
+        }
+        templateCoverage.push(entry);
+    }
+    const flowCoverage = [];
+    for (const spec of specs) {
+        if (spec.file.includes("e2e/flows/")) {
+            const fileName = spec.file.split("/").pop() ?? "";
+            const tagPattern = /@([A-Za-z]+-\d+)/g;
+            const requirementIds = [...spec.title.matchAll(tagPattern)].map((m) => m[1]);
+            flowCoverage.push({
+                file: fileName,
+                title: spec.title.replace(/@[A-Za-z]+-\d+/g, "").trim(),
+                status: spec.status === "passed" ? "PASS" : "FAIL",
+                requirementIds,
+            });
+        }
+    }
+    return { templateCoverage, flowCoverage };
+}
 // ---------------------------------------------------------------------------
 // generateSummary — pure function, no I/O
 // ---------------------------------------------------------------------------
-export function generateSummary(state, finalResults, evalSpec) {
+export function generateSummary(state, finalResults, evalSpec, playwrightSpecs) {
     const lines = [];
     // ---- Header ----
     lines.push("# 프로토타입 검증 리포트");
@@ -59,8 +94,10 @@ export function generateSummary(state, finalResults, evalSpec) {
         lines.push("|-----------|----------|--------|-------------|");
         for (const r of finalResults) {
             const statusLabel = r.status === "pass" ? "PASS" : "FAIL";
-            const failCount = r.failures.length;
-            lines.push(`| ${r.evaluator} | ${r.severity} | ${statusLabel} | ${failCount} |`);
+            const detail = r.stats
+                ? `${r.stats.total} total, ${r.stats.passed} passed, ${r.stats.failed} failed`
+                : `${r.failures.length}`;
+            lines.push(`| ${r.evaluator} | ${r.severity} | ${statusLabel} | ${detail} |`);
         }
         lines.push("");
     }
@@ -111,27 +148,54 @@ export function generateSummary(state, finalResults, evalSpec) {
     // ---- Test coverage ----
     lines.push("## 테스트 커버리지");
     lines.push("");
-    // Template-based coverage
-    if (evalSpec.domain.entities.length > 0) {
-        lines.push("### 템플릿 기반");
-        lines.push("");
-        lines.push("| 엔티티 | list | detail | form |");
-        lines.push("|--------|------|--------|------|");
-        for (const entity of evalSpec.domain.entities) {
-            lines.push(`| ${entity.name} | - | - | - |`);
+    if (playwrightSpecs && playwrightSpecs.length > 0) {
+        const coverage = buildCoverageFromSpecs(playwrightSpecs, evalSpec);
+        if (coverage.templateCoverage.length > 0) {
+            lines.push("### 템플릿 기반");
+            lines.push("");
+            lines.push("| 엔티티 | list | detail | form | 결과 |");
+            lines.push("|--------|------|--------|------|------|");
+            for (const entry of coverage.templateCoverage) {
+                const results = [entry.list, entry.detail, entry.form];
+                const passCount = results.filter((r) => r === "PASS").length;
+                const totalCount = results.filter((r) => r !== "-").length;
+                lines.push(`| ${entry.entity} | ${entry.list} | ${entry.detail} | ${entry.form} | ${passCount}/${totalCount} |`);
+            }
+            lines.push("");
         }
-        lines.push("");
+        if (coverage.flowCoverage.length > 0) {
+            lines.push("### key_flow");
+            lines.push("");
+            lines.push("| Flow | 테스트 파일 | Requirement | 결과 |");
+            lines.push("|------|------------|-------------|------|");
+            for (const entry of coverage.flowCoverage) {
+                const reqIds = entry.requirementIds.length > 0 ? entry.requirementIds.join(", ") : "-";
+                lines.push(`| ${entry.title} | ${entry.file} | ${reqIds} | ${entry.status} |`);
+            }
+            lines.push("");
+        }
     }
-    // key_flow coverage
-    if (evalSpec.domain.key_flows.length > 0) {
-        lines.push("### key_flow");
-        lines.push("");
-        lines.push("| Flow | 테스트 |");
-        lines.push("|------|--------|");
-        for (const flow of evalSpec.domain.key_flows) {
-            lines.push(`| ${flow} | - |`);
+    else {
+        if (evalSpec.domain.entities.length > 0) {
+            lines.push("### 템플릿 기반");
+            lines.push("");
+            lines.push("| 엔티티 | list | detail | form |");
+            lines.push("|--------|------|--------|------|");
+            for (const entity of evalSpec.domain.entities) {
+                lines.push(`| ${entity.name} | - | - | - |`);
+            }
+            lines.push("");
         }
-        lines.push("");
+        if (evalSpec.domain.key_flows.length > 0) {
+            lines.push("### key_flow");
+            lines.push("");
+            lines.push("| Flow | 테스트 |");
+            lines.push("|------|--------|");
+            for (const flow of evalSpec.domain.key_flows) {
+                lines.push(`| ${flow} | - |`);
+            }
+            lines.push("");
+        }
     }
     // ---- Execution environment ----
     lines.push("## 실행 환경");
@@ -141,6 +205,24 @@ export function generateSummary(state, finalResults, evalSpec) {
     lines.push(`- **Palette:** ${evalSpec.palette}`);
     lines.push("");
     return lines.join("\n");
+}
+function collectPlaywrightSpecs(suites, out, parentFile) {
+    for (const suite of suites) {
+        const file = suite.file ?? parentFile ?? "";
+        if (suite.specs) {
+            for (const spec of suite.specs) {
+                const allPassed = spec.tests.every((t) => t.status === "passed" || t.status === "expected");
+                out.push({
+                    file,
+                    title: spec.title,
+                    status: allPassed ? "passed" : "failed",
+                });
+            }
+        }
+        if (suite.suites) {
+            collectPlaywrightSpecs(suite.suites, out, file);
+        }
+    }
 }
 // ---------------------------------------------------------------------------
 // writeReport — async, writes files to workspace
@@ -159,8 +241,22 @@ export async function writeReport(workspace, state, finalResults, evalSpec) {
         mkdir(evidenceVideosDir, { recursive: true }),
         mkdir(evidenceLogsDir, { recursive: true }),
     ]);
+    // Try to parse Playwright report for coverage data
+    let playwrightSpecs;
+    try {
+        const reportPath = join(workspace, "app", "playwright-report", "results.json");
+        const raw = await readFile(reportPath, "utf-8");
+        const report = JSON.parse(raw);
+        if (report.suites) {
+            playwrightSpecs = [];
+            collectPlaywrightSpecs(report.suites, playwrightSpecs);
+        }
+    }
+    catch {
+        // No playwright report available — coverage will show placeholders
+    }
     // Write files
-    const summary = generateSummary(state, finalResults, evalSpec);
+    const summary = generateSummary(state, finalResults, evalSpec, playwrightSpecs);
     await Promise.all([
         writeFile(join(reportDir, "summary.md"), summary, "utf-8"),
         writeFile(join(reportDir, "eval-results.json"), JSON.stringify(finalResults, null, 2), "utf-8"),
