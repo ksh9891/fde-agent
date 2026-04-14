@@ -46,26 +46,13 @@ export interface CoverageData {
   flowCoverage: FlowCoverageEntry[];
 }
 
-const ENTITY_SLUG_MAP: Record<string, string> = {
-  "예약": "reservations",
-  "객실": "rooms",
-  "고객": "customers",
-  "상품": "products",
-  "주문": "orders",
-  "회원": "members",
-  "문의": "inquiries",
-  "게시글": "posts",
-  "카테고리": "categories",
-  "설정": "settings",
-};
-
 export function buildCoverageFromSpecs(
   specs: PlaywrightSpecInfo[],
   evalSpec: EvalSpec,
 ): CoverageData {
   const templateCoverage: TemplateCoverageEntry[] = [];
   for (const entity of evalSpec.domain.entities) {
-    const slug = ENTITY_SLUG_MAP[entity.name] ?? entity.name.toLowerCase();
+    const slug = entity.slug;
     const entry: TemplateCoverageEntry = { entity: entity.name, list: "-", detail: "-", form: "-" };
     for (const spec of specs) {
       const fileName = spec.file.split("/").pop() ?? "";
