@@ -11,7 +11,7 @@ import {
 // ---------------------------------------------------------------------------
 
 const minimalDomain = {
-  entities: [{ name: "User", fields: ["id", "email"] }],
+  entities: [{ name: "User", slug: "users", fields: ["id", "email"] }],
   key_flows: ["login", "signup"],
 };
 
@@ -183,6 +183,37 @@ describe("EvalSpecSchema", () => {
     };
     const result = EvalSpecSchema.safeParse(spec);
     expect(result.success).toBe(false);
+  });
+
+  it("rejects spec with entity missing slug", () => {
+    const spec = {
+      ...minimalEvalSpec,
+      domain: {
+        ...minimalDomain,
+        entities: [{ name: "User", fields: ["id"] }],
+      },
+    };
+    const result = EvalSpecSchema.safeParse(spec);
+    expect(result.success).toBe(false);
+  });
+
+  it("validates requirement with optional acceptance_criteria", () => {
+    const spec = {
+      ...minimalEvalSpec,
+      requirements: [
+        {
+          ...minimalRequirements[0],
+          acceptance_criteria: ["Page loads within 2s", "Shows user list"],
+        },
+      ],
+    };
+    const result = EvalSpecSchema.safeParse(spec);
+    expect(result.success).toBe(true);
+  });
+
+  it("validates requirement without acceptance_criteria (backward compatible)", () => {
+    const result = EvalSpecSchema.safeParse(minimalEvalSpec);
+    expect(result.success).toBe(true);
   });
 });
 

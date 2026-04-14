@@ -6,6 +6,7 @@ import { z } from "zod";
 
 const EntitySchema = z.object({
   name: z.string(),
+  slug: z.string(),
   fields: z.array(z.string()),
 });
 
@@ -20,6 +21,7 @@ export const RequirementSchema = z.object({
   severity: z.enum(["hard", "soft"]),
   test_method: z.enum(["e2e", "build_check", "console_check", "unit_test"]),
   description: z.string(),
+  acceptance_criteria: z.array(z.string()).optional(),
 });
 
 export type Requirement = z.infer<typeof RequirementSchema>;
