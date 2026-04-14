@@ -1,6 +1,6 @@
 ---
 name: run
-description: Eval spec을 받아 preset 기반 프로토타입을 생성하고 검증합니다. /fde-agent:run <eval-spec-path> [--resume <run-id>]
+description: Eval spec을 받아 preset 기반 프로토타입을 생성하고 검증합니다. /fde-agent:run --spec <eval-spec-path> [--resume <run-id>]
 ---
 
 ## 실행
