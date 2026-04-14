@@ -78,23 +78,9 @@ async function main() {
   });
 
   // Derive required pages from domain entities
-  const entitySlugMap: Record<string, string> = {
-    "예약": "reservations",
-    "객실": "rooms",
-    "고객": "customers",
-    "상품": "products",
-    "주문": "orders",
-    "회원": "members",
-    "문의": "inquiries",
-    "게시글": "posts",
-    "카테고리": "categories",
-    "설정": "settings",
-  };
-
   const requiredPages = ["dashboard"];
   for (const entity of evalSpec.domain.entities) {
-    const slug = entitySlugMap[entity.name] ?? entity.name.toLowerCase();
-    requiredPages.push(slug);
+    requiredPages.push(entity.slug);
   }
 
   console.log(`[FDE-AGENT] Required pages: ${requiredPages.join(", ")}`);
@@ -129,7 +115,6 @@ async function main() {
       preset: evalSpec.preset,
       palette: evalSpec.palette,
       entities: evalSpec.domain.entities,
-      entitySlugMap: entitySlugMap,
     });
     startIteration = 1;
   }
@@ -155,7 +140,7 @@ async function main() {
         entities: evalSpec.domain.entities,
         requirements: evalSpec.requirements
           .filter((r) => r.test_method === "e2e")
-          .map((r) => ({ id: r.id, title: r.title, severity: r.severity })),
+          .map((r) => ({ id: r.id, title: r.title, severity: r.severity, acceptance_criteria: r.acceptance_criteria })),
       });
 
       if (result.success) {
