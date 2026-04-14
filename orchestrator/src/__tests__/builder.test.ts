@@ -9,7 +9,7 @@ const sampleContract: TaskContract = {
   iteration: 1,
   workspace: "/tmp/test-workspace",
   goal: "테스트",
-  domain: { entities: [{ name: "고객", fields: ["이름"] }], key_flows: ["조회"] },
+  domain: { entities: [{ name: "고객", slug: "customers", fields: ["이름"] }], key_flows: ["조회"] },
   failing_checks: [],
   repair_hints: [],
   protected_files: [],

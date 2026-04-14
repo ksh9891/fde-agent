@@ -8,8 +8,8 @@ const mockEvalSpec = {
   palette: "warm-neutral",
   domain: {
     entities: [
-      { name: "객실", fields: ["객실번호", "타입"] },
-      { name: "예약", fields: ["예약번호", "고객명"] },
+      { name: "객실", slug: "rooms", fields: ["객실번호", "타입"] },
+      { name: "예약", slug: "reservations", fields: ["예약번호", "고객명"] },
     ],
     key_flows: ["예약 목록 조회", "신규 예약 등록"],
   },

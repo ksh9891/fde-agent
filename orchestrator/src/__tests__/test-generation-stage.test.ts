@@ -10,7 +10,7 @@ describe("TestGenerationStage", () => {
     const command = stage.buildCommand({
       workspace: "/workspace/app",
       keyFlows: ["예약 목록 조회", "신규 예약 등록"],
-      entities: [{ name: "예약", fields: ["예약번호", "고객명"] }],
+      entities: [{ name: "예약", slug: "reservations", fields: ["예약번호", "고객명"] }],
       requirements: [],
     });
 
@@ -32,7 +32,7 @@ describe("TestGenerationStage", () => {
     const command = stage.buildCommand({
       workspace: "/workspace/app",
       keyFlows: ["예약 등록"],
-      entities: [{ name: "예약", fields: ["예약번호"] }],
+      entities: [{ name: "예약", slug: "reservations", fields: ["예약번호"] }],
       requirements: [],
     });
 
@@ -49,7 +49,7 @@ describe("TestGenerationStage", () => {
     const command = stage.buildCommand({
       workspace: "/workspace/app",
       keyFlows: ["신규 예약 등록"],
-      entities: [{ name: "예약", fields: ["예약번호"] }],
+      entities: [{ name: "예약", slug: "reservations", fields: ["예약번호"] }],
       requirements: [
         { id: "FR-001", title: "신규 예약 등록", severity: "hard" },
       ],
@@ -69,7 +69,7 @@ describe("TestGenerationStage", () => {
     const command = stage.buildCommand({
       workspace: "/workspace/app",
       keyFlows: ["예약 등록"],
-      entities: [{ name: "예약", fields: ["예약번호"] }],
+      entities: [{ name: "예약", slug: "reservations", fields: ["예약번호"] }],
       requirements: [],
     });
 

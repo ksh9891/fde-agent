@@ -7,7 +7,7 @@ const sampleSpec: EvalSpec = {
   preset: "admin-web",
   palette: "warm-neutral",
   domain: {
-    entities: [{ name: "예약", fields: ["예약번호", "상태"] }],
+    entities: [{ name: "예약", slug: "reservations", fields: ["예약번호", "상태"] }],
     key_flows: ["예약 조회"],
   },
   requirements: [

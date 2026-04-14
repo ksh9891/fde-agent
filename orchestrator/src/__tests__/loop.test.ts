@@ -9,7 +9,7 @@ const sampleSpec: EvalSpec = {
   preset: "admin-web",
   palette: "warm-neutral",
   domain: {
-    entities: [{ name: "고객", fields: ["이름"] }],
+    entities: [{ name: "고객", slug: "customers", fields: ["이름"] }],
     key_flows: ["조회"],
   },
   requirements: [

@@ -5,8 +5,10 @@ palette: warm-neutral
 domain:
   entities:
     - name: 객실
+      slug: rooms
       fields: [객실번호, 타입, 층, 상태, 가격]
     - name: 예약
+      slug: reservations
       fields: [예약번호, 고객명, 객실, 체크인, 체크아웃, 상태]
 
   key_flows:
