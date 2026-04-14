@@ -210,4 +210,38 @@ describe("mainLoop", () => {
 
     expect(afterFirstBuild).not.toHaveBeenCalled();
   });
+
+  it("escalates when afterFirstBuild throws", async () => {
+    const afterFirstBuild = vi.fn().mockRejectedValue(
+      new Error("env_issue: Test Writer Agent failed — cannot verify hard e2e requirements")
+    );
+    const mockBuilder: BuilderInterface = {
+      execute: vi.fn().mockResolvedValue({ success: true, output: "" }),
+    };
+    const mockEvalRunner = vi.fn().mockResolvedValue({
+      allHardConstraintsPassed: true,
+      results: [
+        { evaluator: "build", status: "pass", severity: "hard", failures: [] },
+      ],
+      failures: [],
+    } satisfies PipelineResult);
+
+    const result = await mainLoop({
+      evalSpec: sampleSpec,
+      workspace: "/tmp/ws",
+      runId: "run-tw-fail",
+      builder: mockBuilder,
+      evalRunner: mockEvalRunner,
+      maxIterations: 5,
+      startIteration: 1,
+      afterFirstBuild,
+    });
+
+    expect(result.status).toBe("escalated");
+    expect(result.escalation_reason).toContain("Test Writer Agent failed");
+    expect(result.resumable).toBe(true);
+    expect(result.history).toHaveLength(1);
+    expect(result.history[0].status).toBe("escalated");
+    expect(mockBuilder.execute).toHaveBeenCalledOnce();
+  });
 });

@@ -37,7 +37,32 @@ export async function mainLoop(input: MainLoopInput): Promise<IterationState> {
 
     // After first build (fresh run only), run post-build hooks
     if (iteration === 1 && startIteration === 1 && input.afterFirstBuild) {
-      await input.afterFirstBuild(workspace);
+      try {
+        await input.afterFirstBuild(workspace);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        history.push({
+          iteration,
+          passed: [],
+          failed: [],
+          failure_details: [{
+            id: "test_writer_failed",
+            message,
+            hint: "Fix test generation environment or re-run",
+          }],
+          status: "escalated",
+          reason: "test_writer_failed",
+        });
+        return {
+          run_id: runId,
+          total_iterations: iteration,
+          max_iterations: maxIterations,
+          status: "escalated",
+          escalation_reason: message,
+          resumable: true,
+          history,
+        };
+      }
     }
 
     // 3. Run evaluators

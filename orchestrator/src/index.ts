@@ -153,13 +153,31 @@ async function main() {
         workspace: `${ws}/app`,
         keyFlows: evalSpec.domain.key_flows,
         entities: evalSpec.domain.entities,
-        requirements: evalSpec.requirements,
+        requirements: evalSpec.requirements
+          .filter((r) => r.test_method === "e2e")
+          .map((r) => ({ id: r.id, title: r.title, severity: r.severity })),
       });
+
       if (result.success) {
         console.log("[FDE-AGENT] key_flow E2E tests generated");
-      } else {
-        console.warn("[FDE-AGENT] Test Writer Agent failed (non-blocking):", result.output.slice(0, 200));
+        return;
       }
+
+      const hasHardE2E = evalSpec.requirements.some(
+        (r) => r.test_method === "e2e" && r.severity === "hard"
+      );
+
+      if (hasHardE2E) {
+        throw new Error(
+          "env_issue: Test Writer Agent failed — cannot verify hard e2e requirements: " +
+          result.output.slice(0, 200)
+        );
+      }
+
+      console.warn(
+        "[FDE-AGENT] Test Writer Agent failed (non-blocking — no hard e2e requirements):",
+        result.output.slice(0, 200)
+      );
     },
   });
 
