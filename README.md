@@ -50,7 +50,7 @@ Eval Spec → Preset 선택 → Workspace 생성 → Builder(Claude Code) 생성
 /plugin marketplace add ksh9891/fde-agent
 
 # plugin 설치
-/plugin install fde-agent
+/plugin install fde-agent@fde-agent-marketplace
 ```
 
 ### 2. Orchestrator 빌드
@@ -97,9 +97,14 @@ palette: warm-neutral
 domain:
   entities:
     - name: 객실
+      slug: rooms
       fields: [객실번호, 타입, 층, 상태, 가격]
     - name: 예약
+      slug: reservations
       fields: [예약번호, 고객명, 객실, 체크인, 체크아웃, 상태]
+    - name: 고객
+      slug: customers
+      fields: [고객번호, 이름, 연락처, 등급]
 
   key_flows:
     - 예약 목록 조회 및 필터링
@@ -110,8 +115,11 @@ requirements:
   - id: FR-001
     title: 신규 예약 등록
     severity: hard          # hard = 반드시 통과, soft = 권장
-    test_method: e2e        # build_check | console_check | page_check | e2e
+    test_method: e2e        # build_check | console_check | unit_test | e2e
     description: 객실 선택 → 고객 정보 입력 → 저장까지 완료 가능
+    acceptance_criteria:
+      - "예약 등록 폼에서 객실, 체크인/체크아웃, 고객명을 입력할 수 있다"
+      - "저장 후 예약 목록에 새 항목이 추가된다"
 
   - id: NFR-001
     title: 빌드 성공
@@ -131,10 +139,10 @@ constraints:
 
 ```bash
 # 기본 실행
-/fde-agent:run eval-spec.yaml
+/fde-agent:run --spec eval-spec.yaml
 
 # 중단된 실행 재개
-/fde-agent:run eval-spec.yaml --resume <run-id>
+/fde-agent:run --spec eval-spec.yaml --resume <run-id>
 ```
 
 ### Evaluator 종류
@@ -142,9 +150,11 @@ constraints:
 | test_method | 검증 내용 |
 |-------------|----------|
 | `build_check` | `npm run build` 성공 여부 |
+| `unit_test` | `npm run test` (Vitest) 성공 여부 |
 | `console_check` | 브라우저 콘솔 치명적 에러 없음 |
-| `page_check` | 페이지 렌더링 + 핵심 요소 존재 |
 | `e2e` | Playwright 기반 사용자 흐름 테스트 |
+
+> `page_check`는 Evaluator 파이프라인에서 자동으로 실행되지만, Eval Spec의 test_method로는 지정하지 않습니다.
 
 ## Configuration
 
@@ -191,12 +201,16 @@ fde-agent/
 │       ├── classifier.ts      # 에러 분류 (repairable/env_issue/unknown)
 │       ├── reporter.ts        # 검증 리포트 생성
 │       ├── resume.ts          # 중단/재개
-│       ├── test-generation-stage.ts  # key_flow → E2E 테스트 생성
-│       ├── builder/claude-code.ts    # Claude Code headless 호출
+│       ├── test-generation-stage.ts  # key_flows + requirements → E2E 테스트 생성
+│       ├── builder/
+│       │   ├── interface.ts          # BuilderInterface 정의
+│       │   └── claude-code.ts        # Claude Code headless 호출
 │       └── evaluator/         # build-check, console-check, page-check, e2e, unit-test
 ├── presets/admin-web/
 │   ├── core/scaffold/         # Next.js + shadcn/ui 기본 프로젝트
-│   ├── rules/CLAUDE.md        # Builder(헤드리스 Claude)용 규칙
+│   ├── rules/
+│   │   ├── CLAUDE.md          # Builder(헤드리스 Claude)용 규칙
+│   │   └── protected-files.json  # Builder 수정 금지 파일 목록
 │   └── test-pack/scenarios/   # E2E 시나리오 템플릿
 ├── global/palettes/           # 팔레트 JSON (3종)
 ├── agents/                    # builder.md, test-writer.md
@@ -231,18 +245,20 @@ npm run build
 
 ## Project Status
 
-**현재: Phase 1 완료 (Alpha)**
+**현재: Phase 2B 완료 (Alpha)**
 
-Orchestrator 코어 루프 + 5종 Evaluator(build, console, page, e2e, unit) + E2E 테스트 자동 생성이 동작합니다.
+Orchestrator 코어 루프 + 5종 Evaluator + E2E 테스트 자동 생성 + requirement_id 기반 severity 매핑 + entity slug/acceptance_criteria 지원이 동작합니다.
 
 | 단계 | 내용 | 상태 |
 |------|------|------|
 | Phase 1 | Orchestrator + Evaluator 파이프라인 + E2E | 완료 |
-| Phase 2 | 반응형 검증, 스크린샷 비교 | 예정 |
-| Phase 3 | corporate-site, ecommerce-web preset 추가 | 예정 |
-| Phase 4 | Requirements-to-Eval Compiler (반자동) | 예정 |
-| Phase 5 | 로컬 LLM Builder 지원 | 예정 |
-| Phase 6 | Mobile App / Backend API harness | 예정 |
+| Phase 2A | requirement_id E2E binding + Test Writer blocking | 완료 |
+| Phase 2B | Entity slug + acceptance_criteria | 완료 |
+| Phase 3 | 반응형 검증, 스크린샷 비교 | 예정 |
+| Phase 4 | corporate-site, ecommerce-web preset 추가 | 예정 |
+| Phase 5 | Requirements-to-Eval Compiler (반자동) | 예정 |
+| Phase 6 | 로컬 LLM Builder 지원 | 예정 |
+| Phase 7 | Mobile App / Backend API harness | 예정 |
 
 ## License
 

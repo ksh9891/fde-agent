@@ -6,6 +6,14 @@
 
 FDE Harness Agent는 Claude Code Plugin이다. Eval spec을 입력받아 preset 기반 프로토타입을 생성하고 deterministic evaluation으로 검증한다. **Orchestrator(TypeScript CLI)가 루프의 주인이고, Claude Code는 생성/수정을 담당하는 Builder runtime일 뿐이다.**
 
+## 셋업
+
+```bash
+cd orchestrator && npm install   # orchestrator 의존성
+```
+
+Scaffold(`presets/admin-web/core/scaffold/`)의 의존성은 Provisioner가 런타임에 설치하므로 수동 설치 불필요.
+
 ## 레포 경계 지도
 
 어디가 "우리 코드"이고 어디가 "생성물의 템플릿/산출물"인지 혼동하지 말 것.
@@ -27,6 +35,11 @@ FDE Harness Agent는 Claude Code Plugin이다. Eval spec을 입력받아 preset 
 - Preset = 패턴(목록/상세/폼/대시보드). **도메인은 eval spec에서 주입된다.** 패턴 파일에 엔티티명·필드명을 하드코딩하지 말 것.
 - 팔레트는 `global/palettes/`에만. preset 스캐폴드에 색상을 하드코딩하지 말 것.
 - 최대 repair 반복 15회 상수를 바꾸려면 설계 문서 업데이트가 먼저다.
+- `orchestrator/dist/`는 git 추적 대상이다. orchestrator 코드를 변경하면 **`npm run build` 후 dist/ 변경분도 함께 커밋**할 것.
+
+## Evaluator 파이프라인
+
+Evaluator 5종이 순서대로 실행된다: `build` → `unit_test` → `page_check` → `console` → `e2e`. 앞 3개(build, unit_test, page_check)는 **blocking** — hard severity 실패 시 나머지 evaluator를 건너뛴다. console과 e2e는 non-blocking이므로 항상 실행된다.
 
 ## 완료 전 검증
 

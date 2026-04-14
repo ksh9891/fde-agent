@@ -15,6 +15,20 @@
 - Header: page title + user info
 - Do not create alternative layouts
 
+## Directory Structure
+```
+src/app/(admin)/{entity-slug}/page.tsx          # list
+src/app/(admin)/{entity-slug}/[id]/page.tsx      # detail
+src/app/(admin)/{entity-slug}/new/page.tsx       # create form
+src/app/(admin)/{entity-slug}/[id]/edit/page.tsx  # edit form
+src/app/(admin)/dashboard/page.tsx               # dashboard
+src/app/(admin)/layout.tsx                       # admin layout (protected)
+src/lib/types.ts                                 # entity interfaces
+src/lib/seed-data.ts                             # sample data
+e2e/                                             # template E2E tests (do not modify)
+e2e/flows/                                       # generated E2E tests
+```
+
 ## Page Patterns
 Use these patterns for all pages:
 
@@ -55,3 +69,13 @@ Use these patterns for all pages:
 - Use design-tokens.json for all colors — never hardcode colors
 - Korean language for all user-facing text
 - Consistent spacing: use Tailwind spacing scale only
+
+## Auth
+- Dummy login: `admin@example.com` / `password`
+- Auth wrapper redirects unauthenticated users to `/login`
+- E2E tests use these credentials — do not change the auth flow
+
+## Seed Data
+- `src/lib/seed-data.ts` contains sample records for all entities
+- POST `/api/seed` initializes data store with seed data
+- Use realistic Korean data (names, phone numbers, dates)

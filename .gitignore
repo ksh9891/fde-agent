@@ -30,3 +30,13 @@ yarn-debug.log*
 
 # Data (JSON persistence at runtime)
 data/
+
+# Claude Code local settings (keep shared settings.json, ignore local)
+.claude/settings.local.json
+
+# Next.js generated
+next-env.d.ts
+
+# IDE
+.vscode/
+.idea/

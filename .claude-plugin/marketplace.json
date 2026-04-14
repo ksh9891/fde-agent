@@ -2,8 +2,8 @@
   "name": "fde-agent-marketplace",
   "description": "FDE Harness Agent — preset 기반 프로토타입 생성 + eval-driven 품질 검증",
   "owner": {
-    "name": "FDE Team",
-    "email": "fde@example.com"
+    "name": "ksh9891",
+    "email": "ksh9891@gmail.com"
   },
   "plugins": [
     {
