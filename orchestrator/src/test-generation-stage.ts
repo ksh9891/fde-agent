@@ -15,14 +15,14 @@ interface RequirementInfo {
 interface TestGenerationInput {
   workspace: string;
   keyFlows: string[];
-  entities: Array<{ name: string; fields: string[] }>;
+  entities: Array<{ name: string; slug: string; fields: string[] }>;
   requirements: RequirementInfo[];
 }
 
 interface TestGenerationContract {
   task: "generate_e2e_tests";
   key_flows: string[];
-  entities: Array<{ name: string; fields: string[] }>;
+  entities: Array<{ name: string; slug: string; fields: string[] }>;
   requirements: RequirementInfo[];
   output_dir: string;
   guidelines: string[];

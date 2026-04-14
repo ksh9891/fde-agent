@@ -11,6 +11,7 @@ interface ProvisionerOptions {
 
 interface EntityDef {
   name: string;
+  slug: string;
   fields: string[];
 }
 
@@ -19,7 +20,6 @@ interface ProvisionInput {
   preset: string;
   palette: string;
   entities?: EntityDef[];
-  entitySlugMap?: Record<string, string>;
 }
 
 export class Provisioner {
@@ -77,14 +77,14 @@ export class Provisioner {
     // Generate skeleton pages for each entity
     if (input.entities && input.entities.length > 0) {
       console.log("[FDE-AGENT] Generating entity page skeletons...");
-      await this.generateEntitySkeletons(appDir, input.entities, input.entitySlugMap ?? {});
+      await this.generateEntitySkeletons(appDir, input.entities);
       console.log("[FDE-AGENT] Entity skeletons generated");
 
       // Generate template E2E tests
       const testPackDir = join(this.presetsDir, input.preset, "test-pack", "scenarios");
       if (existsSync(testPackDir)) {
         console.log("[FDE-AGENT] Generating template E2E tests...");
-        await this.generateTemplateE2ETests(appDir, input.entities, input.entitySlugMap ?? {}, testPackDir);
+        await this.generateTemplateE2ETests(appDir, input.entities, testPackDir);
         console.log("[FDE-AGENT] Template E2E tests generated");
       }
     }
@@ -95,7 +95,6 @@ export class Provisioner {
   private async generateEntitySkeletons(
     appDir: string,
     entities: EntityDef[],
-    slugMap: Record<string, string>
   ): Promise<void> {
     // Generate types file
     const typesLines: string[] = [];
@@ -108,7 +107,7 @@ export class Provisioner {
     seedLines.push("");
 
     for (const entity of entities) {
-      const slug = slugMap[entity.name] ?? entity.name.toLowerCase();
+      const slug = entity.slug;
       const typeName = slug.charAt(0).toUpperCase() + slug.slice(1, -1); // "reservations" → "Reservation"
 
       // Type definition
@@ -172,10 +171,10 @@ export class Provisioner {
     await writeFile(join(appDir, "src", "lib", "seed-data.ts"), seedLines.join("\n"));
 
     // Generate seed API route
-    await this.generateSeedRoute(appDir, entities, slugMap);
+    await this.generateSeedRoute(appDir, entities);
 
     // Update sidebar nav in admin layout
-    await this.updateAdminLayout(appDir, entities, slugMap);
+    await this.updateAdminLayout(appDir, entities);
   }
 
   private generateListPage(entity: EntityDef, slug: string, typeName: string): string {
@@ -475,21 +474,20 @@ export default function Edit${typeName}Page() {
   private async generateSeedRoute(
     appDir: string,
     entities: EntityDef[],
-    slugMap: Record<string, string>
   ): Promise<void> {
     const seedRouteDir = join(appDir, "src", "app", "api", "seed");
     await mkdir(seedRouteDir, { recursive: true });
 
     const imports = entities
       .map((e) => {
-        const slug = slugMap[e.name] ?? e.name.toLowerCase();
+        const slug = e.slug;
         return `import { ${slug}Seed } from "@/lib/seed-data";`;
       })
       .join("\n");
 
     const storeCreations = entities
       .map((e) => {
-        const slug = slugMap[e.name] ?? e.name.toLowerCase();
+        const slug = e.slug;
         return `  const ${slug}Store = createDataStore("${slug}");\n  ${slug}Store.seed(${slug}Seed);`;
       })
       .join("\n\n");
@@ -511,14 +509,13 @@ ${storeCreations}
   private async updateAdminLayout(
     appDir: string,
     entities: EntityDef[],
-    slugMap: Record<string, string>
   ): Promise<void> {
     const layoutPath = join(appDir, "src", "app", "(admin)", "layout.tsx");
     if (!existsSync(layoutPath)) return;
 
     const navItems = entities
       .map((e) => {
-        const slug = slugMap[e.name] ?? e.name.toLowerCase();
+        const slug = e.slug;
         return `    { title: "${e.name}", href: "/${slug}" },`;
       })
       .join("\n");
@@ -589,7 +586,6 @@ export default function AdminLayoutWrapper({
   private async generateTemplateE2ETests(
     appDir: string,
     entities: EntityDef[],
-    slugMap: Record<string, string>,
     testPackDir: string
   ): Promise<void> {
     const e2eDir = join(appDir, "e2e");
@@ -604,7 +600,7 @@ export default function AdminLayoutWrapper({
 
     // Generate per-entity E2E tests from templates
     for (const entity of entities) {
-      const slug = slugMap[entity.name] ?? entity.name.toLowerCase();
+      const slug = entity.slug;
 
       // list-view
       const listTemplate = join(testPackDir, "list-view.template.ts");
