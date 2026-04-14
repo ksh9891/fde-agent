@@ -153,6 +153,7 @@ async function main() {
         workspace: `${ws}/app`,
         keyFlows: evalSpec.domain.key_flows,
         entities: evalSpec.domain.entities,
+        requirements: evalSpec.requirements,
       });
       if (result.success) {
         console.log("[FDE-AGENT] key_flow E2E tests generated");

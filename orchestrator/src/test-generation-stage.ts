@@ -6,16 +6,24 @@ interface TestGenerationStageOptions {
   systemPromptPath: string;
 }
 
+interface RequirementInfo {
+  id: string;
+  title: string;
+  severity: string;
+}
+
 interface TestGenerationInput {
   workspace: string;
   keyFlows: string[];
   entities: Array<{ name: string; fields: string[] }>;
+  requirements: RequirementInfo[];
 }
 
 interface TestGenerationContract {
   task: "generate_e2e_tests";
   key_flows: string[];
   entities: Array<{ name: string; fields: string[] }>;
+  requirements: RequirementInfo[];
   output_dir: string;
   guidelines: string[];
 }
@@ -36,6 +44,7 @@ export class TestGenerationStage {
       task: "generate_e2e_tests",
       key_flows: input.keyFlows,
       entities: input.entities,
+      requirements: input.requirements,
       output_dir: "e2e/flows",
       guidelines: [
         "Write one Playwright test file per key_flow in the output_dir",
@@ -44,6 +53,9 @@ export class TestGenerationStage {
         "Test file name format: {flow-slug}.spec.ts",
         "All UI text is in Korean",
         "Do NOT modify any existing files",
+        "Each test.describe MUST include @{requirement_id} tag(s) matching the eval spec requirements",
+        "Example: test.describe('신규 예약 등록 @FR-001', () => { ... })",
+        "If a flow covers multiple requirements, include all tags: @FR-001 @FR-002",
       ],
     };
 
