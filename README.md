@@ -53,20 +53,22 @@ Eval Spec → Preset 선택 → Workspace 생성 → Builder(Claude Code) 생성
 /plugin install fde-agent@fde-agent-marketplace
 ```
 
-### 2. Orchestrator 빌드
+또는 직접 clone하여 로컬 설치:
 
 ```bash
-cd fde-agent/orchestrator
-npm install && npm run build
+git clone https://github.com/ksh9891/fde-agent.git
+claude --plugin-dir /path/to/fde-agent
 ```
 
-### 3. 첫 실행
+### 2. 첫 실행
+
+> Orchestrator 의존성 설치와 빌드는 첫 실행 시 자동으로 수행됩니다.
 
 ```bash
 /fde-agent:run examples/resort-admin-spec.yaml
 ```
 
-### 4. 결과 확인
+### 3. 결과 확인
 
 실행이 완료되면 `workspaces/<run-id>/` 아래에 결과물이 생성됩니다:
 

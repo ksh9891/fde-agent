@@ -16,6 +16,11 @@ if [ ! -d "${CLAUDE_PLUGIN_ROOT}/orchestrator/node_modules" ]; then
   echo "[FDE-AGENT] Installing orchestrator dependencies..."
   cd "${CLAUDE_PLUGIN_ROOT}/orchestrator" && npm install
 fi
+
+if [ ! -d "${CLAUDE_PLUGIN_ROOT}/orchestrator/dist" ]; then
+  echo "[FDE-AGENT] Building orchestrator..."
+  cd "${CLAUDE_PLUGIN_ROOT}/orchestrator" && npm run build
+fi
 ```
 
 3. Bash로 Orchestrator를 실행합니다:
