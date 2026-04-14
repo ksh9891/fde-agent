@@ -49,7 +49,7 @@ const finalResults: EvalResult[] = [
   { evaluator: "unit_test", status: "pass", severity: "hard", failures: [] },
   { evaluator: "page_check", status: "pass", severity: "hard", failures: [] },
   { evaluator: "console", status: "pass", severity: "soft", failures: [] },
-  { evaluator: "e2e", status: "pass", severity: "soft", failures: [] },
+  { evaluator: "e2e", status: "pass", severity: "soft", failures: [], stats: { total: 16, passed: 16, failed: 0 } },
 ];
 
 describe("generateSummary (enhanced)", () => {
@@ -98,5 +98,18 @@ describe("generateSummary (enhanced)", () => {
     expect(summary).toContain("Escalation");
     expect(summary).toContain("Missing DATABASE_URL");
     expect(summary).toContain("--resume");
+  });
+
+  it("shows stats in evaluation results table when available", () => {
+    const summary = generateSummary(completedState, finalResults, mockEvalSpec);
+    expect(summary).toContain("16 total");
+    expect(summary).toContain("16 passed");
+    expect(summary).toContain("0 failed");
+  });
+
+  it("shows fail count column for evaluators without stats", () => {
+    const summary = generateSummary(completedState, finalResults, mockEvalSpec);
+    // build evaluator should show numeric fail count, not stats
+    expect(summary).toMatch(/\| build \| hard \| PASS \| 0 \|/);
   });
 });

@@ -72,8 +72,10 @@ export function generateSummary(
     lines.push("|-----------|----------|--------|-------------|");
     for (const r of finalResults) {
       const statusLabel = r.status === "pass" ? "PASS" : "FAIL";
-      const failCount = r.failures.length;
-      lines.push(`| ${r.evaluator} | ${r.severity} | ${statusLabel} | ${failCount} |`);
+      const detail = r.stats
+        ? `${r.stats.total} total, ${r.stats.passed} passed, ${r.stats.failed} failed`
+        : `${r.failures.length}`;
+      lines.push(`| ${r.evaluator} | ${r.severity} | ${statusLabel} | ${detail} |`);
     }
     lines.push("");
   }
