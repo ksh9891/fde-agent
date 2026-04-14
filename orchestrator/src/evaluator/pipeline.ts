@@ -11,7 +11,7 @@ export interface PipelineResult {
   failures: EvalResult[];
 }
 
-const BLOCKING_EVALUATORS = new Set(["build", "unit_test"]);
+const BLOCKING_EVALUATORS = new Set(["build", "unit_test", "page_check"]);
 
 export class EvalPipeline {
   private evaluators: Evaluator[];

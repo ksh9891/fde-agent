@@ -75,17 +75,23 @@ describe("EvalPipeline", () => {
     expect(result.allHardConstraintsPassed).toBe(true);
   });
 
-  it("should not stop pipeline when page_check fails — not a blocking evaluator", async () => {
+  it("should stop pipeline when page_check fails with hard severity", async () => {
     const build = makeEval("build", passResult("build"));
     const unitTest = makeEval("unit_test", passResult("unit_test"));
     const pageCheck = makeEval("page_check", failResult("page_check", "hard"));
     const consoleCheck = makeEval("console", passResult("console", "soft"));
+    const e2e = makeEval("e2e", passResult("e2e", "soft"));
 
-    const pipeline = new EvalPipeline([build, unitTest, pageCheck, consoleCheck]);
+    const pipeline = new EvalPipeline([build, unitTest, pageCheck, consoleCheck, e2e]);
     const result = await pipeline.runAll("/tmp/workspace");
 
-    expect(consoleCheck.run).toHaveBeenCalledOnce();
-    expect(result.failures).toHaveLength(1);
+    expect(build.run).toHaveBeenCalledOnce();
+    expect(unitTest.run).toHaveBeenCalledOnce();
+    expect(pageCheck.run).toHaveBeenCalledOnce();
+    expect(consoleCheck.run).not.toHaveBeenCalled();
+    expect(e2e.run).not.toHaveBeenCalled();
     expect(result.allHardConstraintsPassed).toBe(false);
+    expect(result.results).toHaveLength(3);
+    expect(result.failures).toHaveLength(1);
   });
 });
