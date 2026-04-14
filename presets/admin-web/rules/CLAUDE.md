@@ -1,12 +1,13 @@
 # Admin Web Preset — Builder Rules
 
 ## Tech Stack
-- Next.js 15 (App Router)
+- Next.js 16 (App Router)
 - TypeScript (strict mode)
 - shadcn/ui for all UI components
 - Tailwind CSS for styling — use design tokens only, no arbitrary values
-- Prisma ORM for data access — no raw SQL
+- JSON file-based data store (`src/lib/data-store.ts`) for data access
 - vitest for unit/component tests
+- Playwright for E2E tests
 
 ## Layout
 - Use the existing AdminLayout (sidebar + header)
@@ -38,15 +39,17 @@ Use these patterns for all pages:
 - Use grid layout (2-3 columns desktop, 1 column mobile)
 
 ## Data Layer
-- Use Prisma ORM exclusively
-- Never use deleteMany, updateMany — single-record operations only
-- Always findUnique before delete
+- Use the JSON file-based data store (`src/lib/data-store.ts`) — getAll, getById, create, update, remove
+- API routes at `/api/[entity]` and `/api/[entity]/[id]` handle CRUD
+- Single-record operations only — no bulk delete/update
 - All mutations must validate input with zod
 
 ## Testing
 - Every domain logic function must have a unit test
 - Every form must have validation tests
-- npm run test must pass at all times
+- `npm run test` (vitest) must pass at all times
+- `npm run test:e2e` (Playwright) — E2E tests are in `e2e/` directory
+- Do NOT modify existing E2E test files generated from templates
 
 ## Style
 - Use design-tokens.json for all colors — never hardcode colors

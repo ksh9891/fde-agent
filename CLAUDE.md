@@ -10,7 +10,7 @@ FDE Harness Agent는 Claude Code Plugin이다. Eval spec을 입력받아 preset 
 
 어디가 "우리 코드"이고 어디가 "생성물의 템플릿/산출물"인지 혼동하지 말 것.
 
-- `orchestrator/` — 우리가 짜는 TypeScript CLI. Deterministic 로직. **LLM 호출은 `src/builder/claude-code.ts` 한 군데로 격리**한다.
+- `orchestrator/` — 우리가 짜는 TypeScript CLI. Deterministic 로직. **LLM 호출은 agent 경계 내부(`src/builder/claude-code.ts`, `src/test-generation-stage.ts`)로 격리**한다.
 - `presets/<preset>/` — Builder가 생성할 프로토타입의 스캐폴드/규칙. 여기를 수정하는 것은 "생성물"을 바꾸는 것이지 orchestrator 동작을 바꾸는 것이 아니다.
   - `core/scaffold/` — Next.js + shadcn/ui 기본 프로젝트
   - `rules/CLAUDE.md` — Builder(헤드리스 Claude)용 규칙. 이 루트 CLAUDE.md와 역할이 다르다.
@@ -22,7 +22,7 @@ FDE Harness Agent는 Claude Code Plugin이다. Eval spec을 입력받아 preset 
 
 ## 불변 설계 원칙
 
-- Orchestrator는 deterministic이다. 새로운 LLM 호출을 `builder/claude-code.ts`와 `agents/*.md` 프롬프트 경계 밖에 추가하지 말 것.
+- Orchestrator는 deterministic이다. 새로운 LLM 호출을 agent 경계(`builder/claude-code.ts`, `test-generation-stage.ts`, `agents/*.md` 프롬프트) 밖에 추가하지 말 것.
 - **루프 종료 판단은 evaluator가 한다.** Builder가 "완료했다"고 주장해도 evaluator가 pass 내지 않으면 루프는 계속 돈다. Builder 자가 평가로 종료 로직을 만들지 말 것.
 - Preset = 패턴(목록/상세/폼/대시보드). **도메인은 eval spec에서 주입된다.** 패턴 파일에 엔티티명·필드명을 하드코딩하지 말 것.
 - 팔레트는 `global/palettes/`에만. preset 스캐폴드에 색상을 하드코딩하지 말 것.
