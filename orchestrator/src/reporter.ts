@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { EvalResult, EvalSpec, IterationState } from "./types.js";
 
@@ -18,6 +18,83 @@ function formatStatus(status: string): string {
 }
 
 // ---------------------------------------------------------------------------
+// Playwright report coverage mapping
+// ---------------------------------------------------------------------------
+
+export interface PlaywrightSpecInfo {
+  file: string;
+  title: string;
+  status: string;
+}
+
+interface TemplateCoverageEntry {
+  entity: string;
+  list: string;
+  detail: string;
+  form: string;
+}
+
+interface FlowCoverageEntry {
+  file: string;
+  title: string;
+  status: string;
+}
+
+export interface CoverageData {
+  templateCoverage: TemplateCoverageEntry[];
+  flowCoverage: FlowCoverageEntry[];
+}
+
+const ENTITY_SLUG_MAP: Record<string, string> = {
+  "예약": "reservations",
+  "객실": "rooms",
+  "고객": "customers",
+  "상품": "products",
+  "주문": "orders",
+  "회원": "members",
+  "문의": "inquiries",
+  "게시글": "posts",
+  "카테고리": "categories",
+  "설정": "settings",
+};
+
+export function buildCoverageFromSpecs(
+  specs: PlaywrightSpecInfo[],
+  evalSpec: EvalSpec,
+): CoverageData {
+  const templateCoverage: TemplateCoverageEntry[] = [];
+  for (const entity of evalSpec.domain.entities) {
+    const slug = ENTITY_SLUG_MAP[entity.name] ?? entity.name.toLowerCase();
+    const entry: TemplateCoverageEntry = { entity: entity.name, list: "-", detail: "-", form: "-" };
+    for (const spec of specs) {
+      const fileName = spec.file.split("/").pop() ?? "";
+      if (fileName === `${slug}-list.spec.ts`) {
+        entry.list = spec.status === "passed" ? "PASS" : "FAIL";
+      } else if (fileName === `${slug}-detail.spec.ts`) {
+        entry.detail = spec.status === "passed" ? "PASS" : "FAIL";
+      } else if (fileName === `${slug}-form.spec.ts`) {
+        entry.form = spec.status === "passed" ? "PASS" : "FAIL";
+      }
+    }
+    templateCoverage.push(entry);
+  }
+
+  const flowCoverage: FlowCoverageEntry[] = [];
+  for (const spec of specs) {
+    if (spec.file.includes("e2e/flows/")) {
+      const fileName = spec.file.split("/").pop() ?? "";
+      flowCoverage.push({
+        file: fileName,
+        title: spec.title,
+        status: spec.status === "passed" ? "PASS" : "FAIL",
+      });
+    }
+  }
+
+  return { templateCoverage, flowCoverage };
+}
+
+// ---------------------------------------------------------------------------
 // generateSummary — pure function, no I/O
 // ---------------------------------------------------------------------------
 
@@ -25,6 +102,7 @@ export function generateSummary(
   state: IterationState,
   finalResults: EvalResult[],
   evalSpec: EvalSpec,
+  playwrightSpecs?: PlaywrightSpecInfo[],
 ): string {
   const lines: string[] = [];
 
@@ -135,28 +213,55 @@ export function generateSummary(
   lines.push("## 테스트 커버리지");
   lines.push("");
 
-  // Template-based coverage
-  if (evalSpec.domain.entities.length > 0) {
-    lines.push("### 템플릿 기반");
-    lines.push("");
-    lines.push("| 엔티티 | list | detail | form |");
-    lines.push("|--------|------|--------|------|");
-    for (const entity of evalSpec.domain.entities) {
-      lines.push(`| ${entity.name} | - | - | - |`);
-    }
-    lines.push("");
-  }
+  if (playwrightSpecs && playwrightSpecs.length > 0) {
+    const coverage = buildCoverageFromSpecs(playwrightSpecs, evalSpec);
 
-  // key_flow coverage
-  if (evalSpec.domain.key_flows.length > 0) {
-    lines.push("### key_flow");
-    lines.push("");
-    lines.push("| Flow | 테스트 |");
-    lines.push("|------|--------|");
-    for (const flow of evalSpec.domain.key_flows) {
-      lines.push(`| ${flow} | - |`);
+    if (coverage.templateCoverage.length > 0) {
+      lines.push("### 템플릿 기반");
+      lines.push("");
+      lines.push("| 엔티티 | list | detail | form | 결과 |");
+      lines.push("|--------|------|--------|------|------|");
+      for (const entry of coverage.templateCoverage) {
+        const results = [entry.list, entry.detail, entry.form];
+        const passCount = results.filter((r) => r === "PASS").length;
+        const totalCount = results.filter((r) => r !== "-").length;
+        lines.push(`| ${entry.entity} | ${entry.list} | ${entry.detail} | ${entry.form} | ${passCount}/${totalCount} |`);
+      }
+      lines.push("");
     }
-    lines.push("");
+
+    if (coverage.flowCoverage.length > 0) {
+      lines.push("### key_flow");
+      lines.push("");
+      lines.push("| Flow | 테스트 파일 | 결과 |");
+      lines.push("|------|------------|------|");
+      for (const entry of coverage.flowCoverage) {
+        lines.push(`| ${entry.title} | ${entry.file} | ${entry.status} |`);
+      }
+      lines.push("");
+    }
+  } else {
+    if (evalSpec.domain.entities.length > 0) {
+      lines.push("### 템플릿 기반");
+      lines.push("");
+      lines.push("| 엔티티 | list | detail | form |");
+      lines.push("|--------|------|--------|------|");
+      for (const entity of evalSpec.domain.entities) {
+        lines.push(`| ${entity.name} | - | - | - |`);
+      }
+      lines.push("");
+    }
+
+    if (evalSpec.domain.key_flows.length > 0) {
+      lines.push("### key_flow");
+      lines.push("");
+      lines.push("| Flow | 테스트 |");
+      lines.push("|------|--------|");
+      for (const flow of evalSpec.domain.key_flows) {
+        lines.push(`| ${flow} | - |`);
+      }
+      lines.push("");
+    }
   }
 
   // ---- Execution environment ----
@@ -168,6 +273,40 @@ export function generateSummary(
   lines.push("");
 
   return lines.join("\n");
+}
+
+// ---------------------------------------------------------------------------
+// Playwright report parsing for writeReport
+// ---------------------------------------------------------------------------
+
+interface PlaywrightReportSuite {
+  title?: string;
+  file?: string;
+  specs?: Array<{ title: string; ok: boolean; tests: Array<{ status: string }> }>;
+  suites?: PlaywrightReportSuite[];
+}
+
+function collectPlaywrightSpecs(
+  suites: PlaywrightReportSuite[],
+  out: PlaywrightSpecInfo[],
+  parentFile?: string,
+): void {
+  for (const suite of suites) {
+    const file = suite.file ?? parentFile ?? "";
+    if (suite.specs) {
+      for (const spec of suite.specs) {
+        const allPassed = spec.tests.every((t) => t.status === "passed" || t.status === "expected");
+        out.push({
+          file,
+          title: spec.title,
+          status: allPassed ? "passed" : "failed",
+        });
+      }
+    }
+    if (suite.suites) {
+      collectPlaywrightSpecs(suite.suites, out, file);
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -195,8 +334,22 @@ export async function writeReport(
     mkdir(evidenceLogsDir, { recursive: true }),
   ]);
 
+  // Try to parse Playwright report for coverage data
+  let playwrightSpecs: PlaywrightSpecInfo[] | undefined;
+  try {
+    const reportPath = join(workspace, "app", "playwright-report", "results.json");
+    const raw = await readFile(reportPath, "utf-8");
+    const report = JSON.parse(raw) as { suites?: PlaywrightReportSuite[] };
+    if (report.suites) {
+      playwrightSpecs = [];
+      collectPlaywrightSpecs(report.suites, playwrightSpecs);
+    }
+  } catch {
+    // No playwright report available — coverage will show placeholders
+  }
+
   // Write files
-  const summary = generateSummary(state, finalResults, evalSpec);
+  const summary = generateSummary(state, finalResults, evalSpec, playwrightSpecs);
 
   await Promise.all([
     writeFile(join(reportDir, "summary.md"), summary, "utf-8"),

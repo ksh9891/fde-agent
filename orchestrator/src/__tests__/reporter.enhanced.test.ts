@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { generateSummary } from "../reporter.js";
+import { generateSummary, buildCoverageFromSpecs, type PlaywrightSpecInfo } from "../reporter.js";
 import type { EvalResult, IterationState } from "../types.js";
 
 const mockEvalSpec = {
@@ -80,11 +80,25 @@ describe("generateSummary (enhanced)", () => {
     expect(summary).toContain("Iteration 3");
   });
 
-  it("includes test coverage section", () => {
+  it("includes test coverage section with placeholder when no playwright data", () => {
     const summary = generateSummary(completedState, finalResults, mockEvalSpec);
     expect(summary).toContain("테스트 커버리지");
     expect(summary).toContain("객실");
     expect(summary).toContain("예약");
+  });
+
+  it("includes test coverage with actual data when playwrightSpecs provided", () => {
+    const specs: PlaywrightSpecInfo[] = [
+      { file: "e2e/rooms-list.spec.ts", title: "객실 list", status: "passed" },
+      { file: "e2e/rooms-detail.spec.ts", title: "객실 detail", status: "passed" },
+      { file: "e2e/rooms-form.spec.ts", title: "객실 form", status: "failed" },
+      { file: "e2e/reservations-list.spec.ts", title: "예약 list", status: "passed" },
+      { file: "e2e/flows/reservation-create.spec.ts", title: "신규 예약 등록", status: "passed" },
+    ];
+    const summary = generateSummary(completedState, finalResults, mockEvalSpec, specs);
+    expect(summary).toContain("PASS");
+    expect(summary).toContain("FAIL");
+    expect(summary).toContain("reservation-create.spec.ts");
   });
 
   it("escalated state includes escalation reason", () => {
@@ -111,5 +125,40 @@ describe("generateSummary (enhanced)", () => {
     const summary = generateSummary(completedState, finalResults, mockEvalSpec);
     // build evaluator should show numeric fail count, not stats
     expect(summary).toMatch(/\| build \| hard \| PASS \| 0 \|/);
+  });
+});
+
+describe("buildCoverageFromSpecs", () => {
+  const mockPlaywrightSpecs: PlaywrightSpecInfo[] = [
+    { file: "e2e/rooms-list.spec.ts", title: "객실 목록 조회", status: "passed" },
+    { file: "e2e/rooms-detail.spec.ts", title: "객실 상세", status: "passed" },
+    { file: "e2e/rooms-form.spec.ts", title: "객실 등록 폼", status: "failed" },
+    { file: "e2e/reservations-list.spec.ts", title: "예약 목록 조회", status: "passed" },
+    { file: "e2e/reservations-detail.spec.ts", title: "예약 상세", status: "passed" },
+    { file: "e2e/reservations-form.spec.ts", title: "예약 등록 폼", status: "passed" },
+    { file: "e2e/flows/reservation-create.spec.ts", title: "신규 예약 등록", status: "passed" },
+    { file: "e2e/flows/reservation-list-filter.spec.ts", title: "예약 목록 조회", status: "failed" },
+  ];
+
+  it("maps template tests to entity coverage table", () => {
+    const coverage = buildCoverageFromSpecs(mockPlaywrightSpecs, mockEvalSpec);
+    expect(coverage.templateCoverage).toHaveLength(2);
+    const rooms = coverage.templateCoverage.find((c) => c.entity === "객실");
+    expect(rooms?.list).toBe("PASS");
+    expect(rooms?.detail).toBe("PASS");
+    expect(rooms?.form).toBe("FAIL");
+    const reservations = coverage.templateCoverage.find((c) => c.entity === "예약");
+    expect(reservations?.list).toBe("PASS");
+    expect(reservations?.detail).toBe("PASS");
+    expect(reservations?.form).toBe("PASS");
+  });
+
+  it("maps flow tests to key_flow coverage table", () => {
+    const coverage = buildCoverageFromSpecs(mockPlaywrightSpecs, mockEvalSpec);
+    expect(coverage.flowCoverage).toHaveLength(2);
+    const create = coverage.flowCoverage.find((c) => c.file === "reservation-create.spec.ts");
+    expect(create?.status).toBe("PASS");
+    const filter = coverage.flowCoverage.find((c) => c.file === "reservation-list-filter.spec.ts");
+    expect(filter?.status).toBe("FAIL");
   });
 });
