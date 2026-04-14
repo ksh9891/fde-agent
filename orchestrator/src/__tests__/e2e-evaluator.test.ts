@@ -28,6 +28,30 @@ describe("mapFailureSeverity", () => {
   it("matches partial title (requirement title is substring of spec title)", () => {
     expect(mapFailureSeverity("예약 목록 조회 > 페이지네이션 동작", requirements)).toBe("hard");
   });
+
+  it("returns hard when spec title contains @tag matching hard requirement", () => {
+    expect(mapFailureSeverity("신규 예약 등록 @FR-001", requirements)).toBe("hard");
+  });
+
+  it("returns soft when spec title contains @tag matching soft requirement", () => {
+    expect(mapFailureSeverity("대시보드 표시 @NFR-003", requirements)).toBe("soft");
+  });
+
+  it("returns soft when @tag is present but matches no requirement", () => {
+    expect(mapFailureSeverity("어떤 테스트 @UNKNOWN-999", requirements)).toBe("soft");
+  });
+
+  it("returns hard when any @tag matches hard requirement (multiple tags)", () => {
+    expect(mapFailureSeverity("복합 플로우 @NFR-003 @FR-001", requirements)).toBe("hard");
+  });
+
+  it("prefers tag matching over title substring matching", () => {
+    expect(mapFailureSeverity("대시보드 표시 @FR-001", requirements)).toBe("hard");
+  });
+
+  it("falls back to title matching when no @tag present", () => {
+    expect(mapFailureSeverity("신규 예약 등록", requirements)).toBe("hard");
+  });
 });
 
 describe("collectAllSpecs", () => {

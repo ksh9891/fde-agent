@@ -31,6 +31,19 @@ export function mapFailureSeverity(
   specTitle: string,
   requirements: Requirement[],
 ): "hard" | "soft" {
+  // 1. Tag-based matching (@FR-001 등)
+  const tagPattern = /@([A-Za-z]+-\d+)/g;
+  const tags = [...specTitle.matchAll(tagPattern)].map((m) => m[1]);
+
+  if (tags.length > 0) {
+    for (const tag of tags) {
+      const req = requirements.find((r) => r.id === tag);
+      if (req?.severity === "hard") return "hard";
+    }
+    return "soft"; // tags found but none are hard
+  }
+
+  // 2. Fallback: title substring matching (legacy/template tests)
   const e2eReqs = requirements.filter((r) => r.test_method === "e2e");
   for (const req of e2eReqs) {
     if (specTitle.includes(req.title)) {
