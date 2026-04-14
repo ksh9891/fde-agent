@@ -54,13 +54,13 @@ MVP에서 빠져 있는 소프트 평가기(E2E, Console)를 파이프라인에 
 
 workspace 생성 시 scaffold 복사 후:
 1. `npm install` (기존)
-2. `npx playwright install chromium` 추가
+2. Playwright 브라우저 설치: 이미 설치되어 있으면 skip, 없을 때만 `npx playwright install chromium` 실행. 설치 실패 시 env_issue로 escalation한다. CI/로컬 캐시 전략은 구현 plan에서 상세화한다.
 
 ---
 
 ## 2. 테스트 생성 — 하이브리드 방식
 
-### 2-1. 템플릿 기반 (deterministic)
+### 2-1. 템플릿 기반 (deterministic) — Provisioner 단계
 
 Provisioner가 `test-pack/scenarios/` 템플릿을 엔티티별로 치환하여 `e2e/` 디렉토리에 생성한다.
 
@@ -77,15 +77,18 @@ Provisioner가 `test-pack/scenarios/` 템플릿을 엔티티별로 치환하여 
 - `{{FIELDS}}` — 필드 목록 (테이블 컬럼 검증용)
 - `{{SEED_VALUE}}` — 시드 데이터의 첫 번째 레코드 값 (검색/상세 검증용)
 
-### 2-2. Test Writer Agent (LLM)
+Provisioner는 deterministic 작업만 수행한다. LLM 호출은 여기에 포함하지 않는다.
+
+### 2-2. Test Writer Agent (LLM) — TestGenerationStage
 
 eval spec의 `key_flows`에 대해 Test Writer Agent를 호출한다.
 
-**실행 시점:** Provisioner 단계, main loop 진입 전, 1회 실행  
+**실행 주체:** `TestGenerationStage` — Provisioner와 분리된 독립 스테이지  
+**실행 시점:** Builder 1회 실행 후 (Builder가 실제 페이지를 생성한 뒤 라우트 구조가 확정된 상태에서 실행)  
 **실행 방식:** `builder/claude-code.ts`와 동일한 headless Claude Code 호출  
 **입력:**
 - key_flows 목록 (eval spec에서 추출)
-- 생성된 페이지 구조 (디렉토리 목록)
+- Builder가 생성한 실제 페이지 구조 (디렉토리 목록)
 - 시드 데이터 (JSON)
 - 템플릿 기반 테스트 파일 (참고용)
 
@@ -94,7 +97,7 @@ eval spec의 `key_flows`에 대해 Test Writer Agent를 호출한다.
 
 **Agent 프롬프트:** 기존 `agents/test-writer.md`를 활용. task contract 형태로 key_flows와 컨텍스트를 전달한다.
 
-**Orchestrator deterministic 원칙:** Test Writer는 이미 정의된 agent이므로 agent 경계 내 LLM 호출. Orchestrator 본체에 LLM 로직 추가 없음.
+**Orchestrator deterministic 원칙:** Provisioner는 deterministic 유지. Test Writer 호출은 별도 스테이지(`TestGenerationStage`)로 격리하여 "Orchestrator 본체는 deterministic, LLM은 agent 경계 내부" 원칙을 준수한다.
 
 ---
 
@@ -109,46 +112,54 @@ BuildCheck(hard) → UnitTest(hard) → PageCheck(hard)
 ### 변경 후
 
 ```
-BuildCheck(hard) → UnitTest(hard) → PageCheck(hard) → ConsoleCheck(soft) → E2E(soft)
+BuildCheck(hard) → UnitTest(hard) → PageCheck(hard) → ConsoleCheck(configurable) → E2E(requirement severity)
 ```
 
-hard evaluator가 하나라도 실패하면 soft evaluator는 실행하지 않는다 (기존 EvalPipeline의 hard-fail-stop 로직 유지).
+hard evaluator가 하나라도 실패하면 이후 evaluator는 실행하지 않는다 (기존 EvalPipeline의 hard-fail-stop 로직 유지).
 
 ### ConsoleCheckEvaluator 변경
 
 현재 코드(65줄)에 dev server 시작/종료 로직을 추가한다.
 
-1. `next build && next start` 프로세스를 spawn (production 빌드 기준으로 콘솔 에러 검증)
+**실행 절차:**
+1. BuildCheck가 이미 앞에서 `npm run build`를 통과했으므로, `npm run start`만 실행하여 production 서버를 spawn
 2. 서버 ready 대기 (localhost:3000 health check)
 3. Playwright로 각 엔티티 페이지 접근, `console.error` 이벤트 수집
-4. 서버 프로세스 종료
+4. `finally` 블록에서 서버 프로세스 종료
 5. 콘솔 에러가 있으면 failure 반환
 
-- severity: `soft`
+**severity 규칙:**
+- 기본: `soft`
+- **hard로 승격하는 에러:** TypeError, ReferenceError, hydration error, uncaught exception
+- **무시하는 에러:** warning, info 수준 로그
 - failure에 repair hint 포함: 어떤 페이지에서 어떤 에러가 발생했는지
 
 ### E2EEvaluator 변경
 
 현재 코드(117줄)는 Playwright JSON report를 파싱하는 구조가 이미 있다. 변경 최소화.
 
-1. `npm run test:e2e` 실행
+1. `npm run test:e2e` 실행 (ConsoleCheck에서 이미 서버가 떠 있다면 재활용, 아니면 별도 spawn)
 2. `playwright-report/results.json` 파싱 (기존 로직)
 3. 실패한 테스트별 failure 생성
 
-- severity: `soft`
+**severity 규칙:**
+- E2E Evaluator 자체의 고정 severity는 없다.
+- 각 실패의 severity는 해당 테스트가 매핑된 eval spec `requirements[].severity`를 따른다.
+- 템플릿 기반 테스트(list/detail/form/dashboard): `soft` (기본 패턴 검증)
+- key_flow 테스트: 해당 requirement의 severity 상속 (hard일 수 있음)
 - JSON report 경로를 `playwright.config.ts`의 설정과 일치시킴
 
 ### index.ts 변경
 
-evaluator 등록 배열에 추가:
+evaluator 등록 배열에 추가. E2EEvaluator는 requirements 정보를 받아 severity를 동적으로 결정한다:
 
 ```typescript
 const evaluators = [
   new BuildCheckEvaluator(),
   new UnitTestEvaluator(),
   new PageCheckEvaluator(entities),
-  new ConsoleCheckEvaluator(entities),  // 신규
-  new E2EEvaluator(),                   // 신규
+  new ConsoleCheckEvaluator(entities),          // 신규
+  new E2EEvaluator(evalSpec.requirements),      // 신규, severity 동적
 ];
 ```
 
@@ -212,12 +223,14 @@ const evaluators = [
 ```
 EvalSpec (YAML)
   → Parser (Zod 검증)
-  → Provisioner
+  → Provisioner (deterministic만)
       ├── scaffold 복사 + deps 설치
+      ├── Playwright 브라우저 설치 (캐시 있으면 skip)
       ├── 엔티티 페이지/API/시드 생성 (기존)
-      ├── Playwright 설치 (신규)
-      ├── 템플릿 기반 E2E 테스트 생성 (신규)
-      └── Test Writer Agent → key_flow E2E 생성 (신규)
+      └── 템플릿 기반 E2E 테스트 생성 (신규)
+  → Builder 1회 실행 (초기 프로토타입 생성)
+  → TestGenerationStage (신규, 별도 스테이지)
+      └── Test Writer Agent → key_flow E2E 생성
   → Main Loop (최대 15회)
       ├── TaskContract 생성
       ├── Builder Agent 실행
@@ -225,8 +238,8 @@ EvalSpec (YAML)
             ├── BuildCheck (hard)
             ├── UnitTest (hard)
             ├── PageCheck (hard)
-            ├── ConsoleCheck (soft) ← 신규 연결
-            └── E2E (soft) ← 신규 연결
+            ├── ConsoleCheck (configurable) ← 신규
+            └── E2E (requirement severity) ← 신규
   → Reporter
       ├── summary.md (강화)
       ├── eval-results.json (유지)
@@ -235,11 +248,12 @@ EvalSpec (YAML)
 
 ## 6. 구현 순서
 
-1. Playwright scaffold 셋업
-2. 템플릿 치환 로직 (Provisioner 확장)
-3. Test Writer Agent 호출 로직
-4. ConsoleCheckEvaluator dev server 로직
-5. E2E/Console 평가기 pipeline 연결
-6. IterationState failure details 확장
-7. Reporter 강화
-8. 통합 테스트 (resort-admin-spec으로 스모크)
+1. Playwright scaffold 셋업 (config, package.json, 브라우저 캐시 로직)
+2. 템플릿 치환 로직 (Provisioner 확장, deterministic만)
+3. TestGenerationStage 구현 (Provisioner와 분리된 LLM 호출 스테이지)
+4. ConsoleCheckEvaluator 서버 spawn/종료 + severity 승격 로직
+5. E2EEvaluator requirement severity 매핑
+6. Pipeline에 ConsoleCheck/E2E 등록
+7. IterationState failure details 확장
+8. Reporter 강화
+9. 통합 테스트 (resort-admin-spec으로 스모크)
