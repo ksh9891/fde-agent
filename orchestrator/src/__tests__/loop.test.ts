@@ -159,4 +159,55 @@ describe("mainLoop", () => {
     expect(result.escalation_reason).toContain("env_issue");
     expect(mockBuilder.execute).toHaveBeenCalledTimes(1);
   });
+
+  it("should call afterFirstBuild callback after first builder execution", async () => {
+    const afterFirstBuild = vi.fn().mockResolvedValue(undefined);
+    const mockBuilder: BuilderInterface = {
+      execute: vi.fn().mockResolvedValue({ success: true, output: "" }),
+    };
+    const mockEvalRunner = vi.fn().mockResolvedValue({
+      allHardConstraintsPassed: true,
+      results: [],
+      failures: [],
+    } satisfies PipelineResult);
+
+    await mainLoop({
+      evalSpec: sampleSpec,
+      workspace: "/tmp/ws",
+      runId: "run-cb-1",
+      builder: mockBuilder,
+      evalRunner: mockEvalRunner,
+      maxIterations: 5,
+      startIteration: 1,
+      afterFirstBuild,
+    });
+
+    expect(afterFirstBuild).toHaveBeenCalledOnce();
+    expect(afterFirstBuild).toHaveBeenCalledWith("/tmp/ws");
+  });
+
+  it("should not call afterFirstBuild on resumed runs (startIteration > 1)", async () => {
+    const afterFirstBuild = vi.fn().mockResolvedValue(undefined);
+    const mockBuilder: BuilderInterface = {
+      execute: vi.fn().mockResolvedValue({ success: true, output: "" }),
+    };
+    const mockEvalRunner = vi.fn().mockResolvedValue({
+      allHardConstraintsPassed: true,
+      results: [],
+      failures: [],
+    } satisfies PipelineResult);
+
+    await mainLoop({
+      evalSpec: sampleSpec,
+      workspace: "/tmp/ws",
+      runId: "run-cb-2",
+      builder: mockBuilder,
+      evalRunner: mockEvalRunner,
+      maxIterations: 5,
+      startIteration: 3,
+      afterFirstBuild,
+    });
+
+    expect(afterFirstBuild).not.toHaveBeenCalled();
+  });
 });

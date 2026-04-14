@@ -12,6 +12,7 @@ interface MainLoopInput {
   evalRunner: (workspace: string) => Promise<PipelineResult>;
   maxIterations: number;
   startIteration: number;
+  afterFirstBuild?: (workspace: string) => Promise<void>;
 }
 
 export async function mainLoop(input: MainLoopInput): Promise<IterationState> {
@@ -34,6 +35,11 @@ export async function mainLoop(input: MainLoopInput): Promise<IterationState> {
     // 2. Execute builder
     await builder.execute(taskContract);
 
+    // After first build (fresh run only), run post-build hooks
+    if (iteration === 1 && startIteration === 1 && input.afterFirstBuild) {
+      await input.afterFirstBuild(workspace);
+    }
+
     // 3. Run evaluators
     const pipelineResult = await evalRunner(workspace);
 
@@ -45,8 +51,10 @@ export async function mainLoop(input: MainLoopInput): Promise<IterationState> {
       .filter((r) => r.status === "pass")
       .map((r) => r.evaluator);
 
-    // 4. Check for env_issue → escalate immediately
+    // Collect all individual failures (for history + classification)
     const allFailures = pipelineResult.failures.flatMap((r) => r.failures);
+
+    // 4. Check for env_issue → escalate immediately
     const hasEnvIssue = allFailures.some(
       (failure) => classifyFailure(failure) === "env_issue"
     );
@@ -59,6 +67,11 @@ export async function mainLoop(input: MainLoopInput): Promise<IterationState> {
         iteration,
         passed: passedEvaluators,
         failed: failedIds,
+        failure_details: allFailures.map((f) => ({
+          id: f.id,
+          message: f.message,
+          hint: f.repair_hint,
+        })),
         status: "escalated",
         reason: "env_issue",
       });
@@ -79,6 +92,7 @@ export async function mainLoop(input: MainLoopInput): Promise<IterationState> {
         iteration,
         passed: passedEvaluators,
         failed: failedIds,
+        failure_details: [],
         status: "completed",
       });
       return {
@@ -96,6 +110,11 @@ export async function mainLoop(input: MainLoopInput): Promise<IterationState> {
       iteration,
       passed: passedEvaluators,
       failed: failedIds,
+      failure_details: allFailures.map((f) => ({
+        id: f.id,
+        message: f.message,
+        hint: f.repair_hint,
+      })),
       status: "running",
     });
     previousFailures = pipelineResult.failures;
