@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { mapFailureSeverity } from "../evaluator/e2e.js";
+import { mapFailureSeverity, collectAllSpecs } from "../evaluator/e2e.js";
+import type { EvalFailure } from "../types.js";
 
 const requirements = [
   { id: "FR-001", title: "신규 예약 등록", severity: "hard" as const, test_method: "e2e" as const, description: "" },
@@ -26,5 +27,57 @@ describe("mapFailureSeverity", () => {
 
   it("matches partial title (requirement title is substring of spec title)", () => {
     expect(mapFailureSeverity("예약 목록 조회 > 페이지네이션 동작", requirements)).toBe("hard");
+  });
+});
+
+describe("collectAllSpecs", () => {
+  const requirements = [
+    { id: "FR-001", title: "신규 예약 등록", severity: "hard" as const, test_method: "e2e" as const, description: "" },
+  ];
+
+  it("counts all specs including passed, failed, and skipped", () => {
+    const suites = [{
+      specs: [
+        { title: "test 1", status: "passed" },
+        { title: "test 2", status: "failed", error: { message: "oops" } },
+        { title: "test 3", status: "skipped" },
+      ],
+    }];
+    const failures: EvalFailure[] = [];
+    const stats = { total: 0, passed: 0, failed: 0 };
+    collectAllSpecs(suites, failures, stats, requirements);
+    expect(stats.total).toBe(3);
+    expect(stats.passed).toBe(1);
+    expect(stats.failed).toBe(1);
+    expect(failures).toHaveLength(1);
+  });
+
+  it("recurses into nested suites", () => {
+    const suites = [{
+      suites: [{
+        specs: [
+          { title: "nested pass", status: "passed" },
+          { title: "nested fail", status: "timedOut" },
+        ],
+      }],
+    }];
+    const failures: EvalFailure[] = [];
+    const stats = { total: 0, passed: 0, failed: 0 };
+    collectAllSpecs(suites, failures, stats, requirements);
+    expect(stats.total).toBe(2);
+    expect(stats.passed).toBe(1);
+    expect(stats.failed).toBe(1);
+  });
+
+  it("maps severity from requirements for failed specs", () => {
+    const suites = [{
+      specs: [
+        { title: "신규 예약 등록 flow", status: "failed", error: { message: "err" } },
+      ],
+    }];
+    const failures: EvalFailure[] = [];
+    const stats = { total: 0, passed: 0, failed: 0 };
+    collectAllSpecs(suites, failures, stats, requirements);
+    expect(failures[0].severity).toBe("hard");
   });
 });
