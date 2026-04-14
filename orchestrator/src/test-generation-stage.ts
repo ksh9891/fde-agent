@@ -10,6 +10,7 @@ interface RequirementInfo {
   id: string;
   title: string;
   severity: string;
+  acceptance_criteria?: string[];
 }
 
 interface TestGenerationInput {

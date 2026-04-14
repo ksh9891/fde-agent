@@ -76,4 +76,28 @@ describe("TestGenerationStage", () => {
     const contractArg = command.args[command.args.length - 1];
     expect(contractArg).toContain("@{requirement_id}");
   });
+
+  it("should include acceptance_criteria in the contract when provided", () => {
+    const stage = new TestGenerationStage({
+      systemPromptPath: "/plugin/agents/test-writer.md",
+    });
+
+    const command = stage.buildCommand({
+      workspace: "/workspace/app",
+      keyFlows: ["신규 예약 등록"],
+      entities: [{ name: "예약", slug: "reservations", fields: ["예약번호"] }],
+      requirements: [
+        {
+          id: "FR-001",
+          title: "신규 예약 등록",
+          severity: "hard",
+          acceptance_criteria: ["폼에서 입력 가능", "저장 후 목록에 표시"],
+        },
+      ],
+    });
+
+    const contractArg = command.args[command.args.length - 1];
+    expect(contractArg).toContain("폼에서 입력 가능");
+    expect(contractArg).toContain("저장 후 목록에 표시");
+  });
 });
