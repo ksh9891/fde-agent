@@ -264,4 +264,4 @@ Orchestrator 코어 루프 + 5종 Evaluator + E2E 테스트 자동 생성 + requ
 
 ## License
 
-Private
+MIT
