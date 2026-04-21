@@ -66,6 +66,8 @@ claude --plugin-dir /path/to/fde-agent
 
 ```bash
 /fde-agent:run examples/resort-admin-spec.yaml
+# 또는 B2C 예약형(booking-web) 예시:
+/fde-agent:run examples/resort-booking-spec.yaml
 ```
 
 ### 3. 결과 확인
@@ -167,6 +169,7 @@ constraints:
 | Preset | 설명 | 포함 패턴 |
 |--------|------|----------|
 | `admin-web` | 관리자 페이지 | 목록/상세/폼/대시보드, 사이드바+헤더 레이아웃, 로그인(mock) |
+| `booking-web` | B2C 예약 사이트 | 랜딩/카탈로그 목록·상세/회원가입·로그인/예약·내 예약, `(public)`+`(member)` 2-그룹 shell |
 
 > 향후 `corporate-site`, `ecommerce-web` 등 추가 예정
 
@@ -257,7 +260,8 @@ Orchestrator 코어 루프 + 5종 Evaluator + E2E 테스트 자동 생성 + requ
 | Phase 2A | requirement_id E2E binding + Test Writer blocking | 완료 |
 | Phase 2B | Entity slug + acceptance_criteria | 완료 |
 | Phase 3 | 반응형 검증, 스크린샷 비교 | 예정 |
-| Phase 4 | corporate-site, ecommerce-web preset 추가 | 예정 |
+| Phase 4 | booking-web preset 추가 (리조트·호텔·병원예약) | 완료 |
+| Phase 4+ | corporate-site, ecommerce-web preset 추가 | 예정 |
 | Phase 5 | Requirements-to-Eval Compiler (반자동) | 예정 |
 | Phase 6 | 로컬 LLM Builder 지원 | 예정 |
 | Phase 7 | Mobile App / Backend API harness | 예정 |
