@@ -1,3 +1,13 @@
 {
-  "skeleton_generation": "admin-web"
+  "skeleton_generation": "admin-web",
+  "required_pages": ["/dashboard"],
+  "console_login": {
+    "url": "/login",
+    "username_selector": "input[type=\"email\"], input[name=\"email\"]",
+    "password_selector": "input[type=\"password\"], input[name=\"password\"]",
+    "username_value": "admin@example.com",
+    "password_value": "password",
+    "submit_selector": "button[type=\"submit\"]",
+    "expected_url_pattern": "**/dashboard**"
+  }
 }

@@ -1,3 +1,4 @@
 {
-  "skeleton_generation": "none"
+  "skeleton_generation": "none",
+  "required_pages": ["/", "/login", "/signup", "/rooms"]
 }
