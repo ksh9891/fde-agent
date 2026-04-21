@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { rm, access } from "fs/promises";
+import { rm, access, mkdir, writeFile } from "fs/promises";
 import { join } from "path";
 import { Provisioner } from "../provisioner.js";
 
@@ -9,6 +9,7 @@ const PALETTES_DIR = "/tmp/fde-agent-test-palette";
 
 afterEach(async () => {
   await rm(WORKSPACE_ROOT, { recursive: true, force: true });
+  await rm(PRESETS_DIR, { recursive: true, force: true });
 });
 
 describe("Provisioner.create", () => {
@@ -42,5 +43,53 @@ describe("Provisioner.create", () => {
 
     const metaDir = join(workspace, "meta");
     await expect(access(metaDir)).resolves.toBeUndefined();
+  });
+
+  // 주의: package.json을 scaffold에 두면 Provisioner가 npm install + playwright install을 트리거해
+  // 테스트가 수 분 걸리고 네트워크 의존. 여기서는 빈 scaffold 디렉토리만 만들어 그 경로를 회피한다.
+
+  it("should skip entity skeleton generation when preset.json sets skeleton_generation=none", async () => {
+    const runId = "run_skeleton_none";
+    const presetName = "noop-preset";
+    const presetCoreDir = join(PRESETS_DIR, presetName, "core");
+    const scaffoldDir = join(presetCoreDir, "scaffold");
+    await mkdir(scaffoldDir, { recursive: true });
+    await writeFile(
+      join(presetCoreDir, "preset.json"),
+      JSON.stringify({ skeleton_generation: "none" })
+    );
+
+    const workspace = await provisioner.create({
+      runId,
+      preset: presetName,
+      palette: "warm-neutral",
+      entities: [{ name: "객실", slug: "rooms", fields: ["code", "name"] }],
+    });
+
+    // Provisioner가 (admin) 경로를 만들면 안 됨
+    const adminPath = join(workspace, "app", "src", "app", "(admin)", "rooms");
+    await expect(access(adminPath)).rejects.toThrow();
+  });
+
+  it("should keep admin-web skeleton generation when preset.json sets skeleton_generation=admin-web", async () => {
+    const runId = "run_skeleton_admin";
+    const presetName = "fake-admin";
+    const presetCoreDir = join(PRESETS_DIR, presetName, "core");
+    const scaffoldDir = join(presetCoreDir, "scaffold");
+    await mkdir(scaffoldDir, { recursive: true });
+    await writeFile(
+      join(presetCoreDir, "preset.json"),
+      JSON.stringify({ skeleton_generation: "admin-web" })
+    );
+
+    const workspace = await provisioner.create({
+      runId,
+      preset: presetName,
+      palette: "warm-neutral",
+      entities: [{ name: "객실", slug: "rooms", fields: ["code"] }],
+    });
+
+    const listPage = join(workspace, "app", "src", "app", "(admin)", "rooms", "page.tsx");
+    await expect(access(listPage)).resolves.toBeUndefined();
   });
 });

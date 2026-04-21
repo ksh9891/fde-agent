@@ -74,13 +74,30 @@ export class Provisioner {
       await cp(rulesDir, join(workspace, "app"), { recursive: true });
     }
 
+    // Read preset.json to determine skeleton generation strategy (default: admin-web for back-compat)
+    const presetJsonPath = join(this.presetsDir, input.preset, "core", "preset.json");
+    let skeletonStrategy: "admin-web" | "none" = "admin-web";
+    if (existsSync(presetJsonPath)) {
+      try {
+        const raw = await readFile(presetJsonPath, "utf-8");
+        const cfg = JSON.parse(raw) as { skeleton_generation?: "admin-web" | "none" };
+        if (cfg.skeleton_generation === "none") {
+          skeletonStrategy = "none";
+        }
+      } catch {
+        // fall back to admin-web
+      }
+    }
+
     // Generate skeleton pages for each entity
-    if (input.entities && input.entities.length > 0) {
-      console.log("[FDE-AGENT] Generating entity page skeletons...");
+    if (skeletonStrategy === "admin-web" && input.entities && input.entities.length > 0) {
+      console.log("[FDE-AGENT] Generating entity page skeletons (admin-web)...");
       await this.generateEntitySkeletons(appDir, input.entities);
       console.log("[FDE-AGENT] Entity skeletons generated");
+    }
 
-      // Generate template E2E tests
+    // Generate template E2E tests (preset-agnostic scan)
+    if (input.entities && input.entities.length > 0) {
       const testPackDir = join(this.presetsDir, input.preset, "test-pack", "scenarios");
       if (existsSync(testPackDir)) {
         console.log("[FDE-AGENT] Generating template E2E tests...");
@@ -164,11 +181,13 @@ export class Provisioner {
       );
     }
 
-    // Write types file
-    await writeFile(join(appDir, "src", "lib", "types.ts"), typesLines.join("\n"));
+    // Write types file (ensure parent dir exists; real scaffolds already have it)
+    const libDir = join(appDir, "src", "lib");
+    await mkdir(libDir, { recursive: true });
+    await writeFile(join(libDir, "types.ts"), typesLines.join("\n"));
 
     // Write seed data file
-    await writeFile(join(appDir, "src", "lib", "seed-data.ts"), seedLines.join("\n"));
+    await writeFile(join(libDir, "seed-data.ts"), seedLines.join("\n"));
 
     // Generate seed API route
     await this.generateSeedRoute(appDir, entities);
