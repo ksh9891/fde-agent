@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "관리자",
-  description: "관리자 대시보드",
+  title: "예약 서비스",
+  description: "온라인 예약 서비스",
 };
 
 export default function RootLayout({
