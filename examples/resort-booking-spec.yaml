@@ -1,0 +1,86 @@
+project: resort-booking-prototype
+preset: booking-web
+palette: warm-neutral
+
+domain:
+  entities:
+    - name: 회원
+      slug: members
+      fields: [아이디, 비밀번호, 이름, 연락처, 이메일, 분양회원번호, 회원유형]
+    - name: 객실
+      slug: rooms
+      fields: [객실코드, 객실명, 재고, 회원유형별금액, 예약가능회원유형]
+    - name: 예약
+      slug: reservations
+      fields: [예약번호, 회원, 객실, 투숙자, 예약일자, 회원유형, 상태]
+
+  key_flows:
+    - 회원가입 (분양회원번호 유무로 자동 분류)
+    - 로그인 / 로그아웃
+    - 객실 목록 및 상세 조회 (비로그인 가능)
+    - 예약 진행 (회원유형·재고 검증)
+    - 내 예약 확인
+
+requirements:
+  - id: BR-001
+    title: 분양회원번호 유무로 회원유형 자동 분류
+    severity: hard
+    test_method: e2e
+    acceptance_criteria:
+      - "분양회원번호를 입력하고 가입한 회원은 분양회원으로 분류된다"
+      - "분양회원번호 없이 가입한 회원은 일반회원으로 분류된다"
+
+  - id: BR-002
+    title: 회원유형별 객실 예약 가능성 제어
+    severity: hard
+    test_method: e2e
+    acceptance_criteria:
+      - "객실의 예약가능회원유형에 포함되지 않는 회원은 예약 불가 처리된다"
+      - "객실 상세에서 회원유형별 금액이 확인 가능하다"
+
+  - id: BR-003
+    title: 예약 성공 시 재고 1 차감, 재고 0이면 예약 거부
+    severity: hard
+    test_method: e2e
+    acceptance_criteria:
+      - "재고가 1 이상인 객실은 예약 성공 후 재고가 1 감소한다"
+      - "재고가 0인 객실은 예약이 거부되고 안내 메시지가 표시된다"
+
+  - id: BR-004
+    title: 예약/내예약 페이지 접근은 로그인 필수
+    severity: hard
+    test_method: e2e
+    acceptance_criteria:
+      - "비로그인 상태로 /book/... 접근 시 /login?redirect=... 으로 이동한다"
+      - "비로그인 상태로 /my/reservations 접근 시 /login 으로 이동한다"
+
+  - id: BR-005
+    title: 회원가입 폼 검증
+    severity: hard
+    test_method: e2e
+    acceptance_criteria:
+      - "비밀번호가 8자 미만이거나 영문+숫자 조합이 아니면 저장되지 않는다"
+      - "필수 항목(아이디, 비밀번호, 이름, 연락처) 누락 시 저장되지 않는다"
+      - "이메일 입력 시 이메일 형식이 검증된다"
+      - "아이디 중복 시 저장이 거부되고 안내 메시지가 표시된다"
+
+  - id: BR-006
+    title: 예약 단위는 1박 1실
+    severity: hard
+    test_method: e2e
+    acceptance_criteria:
+      - "한 번의 예약은 하나의 객실, 1박으로만 가능하다"
+      - "예약 폼에서 투숙자 정보를 입력할 수 있다"
+
+  - id: NFR-001
+    title: 빌드 성공
+    severity: hard
+    test_method: build_check
+
+data_source:
+  type: mock
+
+constraints:
+  - React + TypeScript + Next.js
+  - shadcn/ui 컴포넌트 사용
+  - 한국어 UI
