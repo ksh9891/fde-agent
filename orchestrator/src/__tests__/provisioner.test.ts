@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { rm, access, mkdir, writeFile } from "fs/promises";
+import { rm, access, mkdir, writeFile, readFile } from "fs/promises";
 import { join } from "path";
 import { Provisioner } from "../provisioner.js";
 
@@ -91,5 +91,48 @@ describe("Provisioner.create", () => {
 
     const listPage = join(workspace, "app", "src", "app", "(admin)", "rooms", "page.tsx");
     await expect(access(listPage)).resolves.toBeUndefined();
+  });
+
+  it("should copy templates without entity placeholders as single spec files", async () => {
+    const runId = "run_flow_templates";
+    const presetName = "flow-preset";
+    const presetCoreDir = join(PRESETS_DIR, presetName, "core");
+    const scaffoldDir = join(presetCoreDir, "scaffold");
+    const testPackDir = join(PRESETS_DIR, presetName, "test-pack", "scenarios");
+    await mkdir(scaffoldDir, { recursive: true });
+    await mkdir(testPackDir, { recursive: true });
+    // package.json 없음 (위 주의사항 참조)
+    await writeFile(
+      join(presetCoreDir, "preset.json"),
+      JSON.stringify({ skeleton_generation: "none" })
+    );
+    // Flow template (no entity placeholder)
+    await writeFile(
+      join(testPackDir, "auth-gate.template.ts"),
+      `import { test } from '@playwright/test';\ntest('auth gate', async ({ page }) => {\n  await page.goto('/my/reservations');\n});\n`
+    );
+    // Entity-placeholder template
+    await writeFile(
+      join(testPackDir, "catalog-list.template.ts"),
+      `const ENTITY_NAME = '__ENTITY_NAME__';\nconst ENTITY_PATH = '__ENTITY_PATH__';\n`
+    );
+
+    const workspace = await provisioner.create({
+      runId,
+      preset: presetName,
+      palette: "warm-neutral",
+      entities: [{ name: "객실", slug: "rooms", fields: ["code"] }],
+    });
+
+    // Flow template copied as-is
+    const authGate = join(workspace, "app", "e2e", "auth-gate.spec.ts");
+    await expect(access(authGate)).resolves.toBeUndefined();
+
+    // Entity template copied per-entity with placeholders substituted
+    const roomsList = join(workspace, "app", "e2e", "rooms-catalog-list.spec.ts");
+    await expect(access(roomsList)).resolves.toBeUndefined();
+    const content = await readFile(roomsList, "utf-8");
+    expect(content).toContain("'객실'");
+    expect(content).toContain("'/rooms'");
   });
 });

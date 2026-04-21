@@ -607,56 +607,54 @@ export default function AdminLayoutWrapper({
     entities: EntityDef[],
     testPackDir: string
   ): Promise<void> {
+    const { readdir } = await import("fs/promises");
     const e2eDir = join(appDir, "e2e");
     await mkdir(e2eDir, { recursive: true });
 
-    // Copy dashboard template as-is
-    const dashboardTemplate = join(testPackDir, "dashboard.template.ts");
-    if (existsSync(dashboardTemplate)) {
-      const content = await readFile(dashboardTemplate, "utf-8");
-      await writeFile(join(e2eDir, "dashboard.spec.ts"), content);
-    }
+    const files = await readdir(testPackDir);
+    const templates = files.filter((f) => f.endsWith(".template.ts"));
 
-    // Generate per-entity E2E tests from templates
-    for (const entity of entities) {
-      const slug = entity.slug;
+    for (const file of templates) {
+      const baseName = file.replace(/\.template\.ts$/, "");
+      const content = await readFile(join(testPackDir, file), "utf-8");
+      const hasEntityPlaceholders =
+        content.includes("__ENTITY_NAME__") ||
+        content.includes("__ENTITY_PATH__") ||
+        content.includes("__DETAIL_PATH__") ||
+        content.includes("__FORM_PATH__") ||
+        content.includes("__SEARCH_FIELD__");
 
-      // list-view
-      const listTemplate = join(testPackDir, "list-view.template.ts");
-      if (existsSync(listTemplate)) {
-        let content = await readFile(listTemplate, "utf-8");
-        content = content.replace("'__ENTITY_NAME__'", `'${entity.name}'`);
-        content = content.replace("'__ENTITY_PATH__'", `'/${slug}'`);
-        content = content.replace("'__SEARCH_FIELD__'", `'${entity.fields[0]}'`);
-        await writeFile(join(e2eDir, `${slug}-list.spec.ts`), content);
+      if (!hasEntityPlaceholders) {
+        // Flow template — copy as single spec file
+        await writeFile(join(e2eDir, `${baseName}.spec.ts`), content);
+        continue;
       }
 
-      // detail-view
-      const detailTemplate = join(testPackDir, "detail-view.template.ts");
-      if (existsSync(detailTemplate)) {
-        let content = await readFile(detailTemplate, "utf-8");
-        content = content.replace("'__ENTITY_NAME__'", `'${entity.name}'`);
-        content = content.replace("'__DETAIL_PATH__'", `'/${slug}/1'`);
-        await writeFile(join(e2eDir, `${slug}-detail.spec.ts`), content);
-      }
-
-      // form-submit
-      const formTemplate = join(testPackDir, "form-submit.template.ts");
-      if (existsSync(formTemplate)) {
-        let content = await readFile(formTemplate, "utf-8");
-        content = content.replace("'__ENTITY_NAME__'", `'${entity.name}'`);
-        content = content.replace("'__FORM_PATH__'", `'/${slug}/new'`);
-
-        // Replace REQUIRED_FIELDS with actual field data (first 3 fields)
-        const fieldsToUse = entity.fields.slice(0, 3);
-        const fieldEntries = fieldsToUse
-          .map((f) => `  { label: "${f}", value: "테스트 ${f}" },`)
-          .join("\n");
-        content = content.replace(
-          /const REQUIRED_FIELDS: \{ label: string; value: string \}\[\] = \[\n\s*\/\/ Test Writer fills these in\n\];/,
-          `const REQUIRED_FIELDS: { label: string; value: string }[] = [\n${fieldEntries}\n];`
+      // Entity template — generate per-entity copies.
+      // 플레이스홀더는 single/double quote 모두 허용해서 admin-web(single)과 booking-web(either)에 호환.
+      for (const entity of entities) {
+        const slug = entity.slug;
+        let out = content;
+        out = out.replace(/['"]__ENTITY_NAME__['"]/g, `'${entity.name}'`);
+        out = out.replace(/['"]__ENTITY_PATH__['"]/g, `'/${slug}'`);
+        out = out.replace(/['"]__DETAIL_PATH__['"]/g, `'/${slug}/1'`);
+        out = out.replace(/['"]__FORM_PATH__['"]/g, `'/${slug}/new'`);
+        out = out.replace(
+          /['"]__SEARCH_FIELD__['"]/g,
+          `'${entity.fields[0] ?? ""}'`
         );
-        await writeFile(join(e2eDir, `${slug}-form.spec.ts`), content);
+        // REQUIRED_FIELDS injection (admin-web form-submit template compatibility)
+        if (content.includes("// Test Writer fills these in")) {
+          const fieldsToUse = entity.fields.slice(0, 3);
+          const fieldEntries = fieldsToUse
+            .map((f) => `  { label: "${f}", value: "테스트 ${f}" },`)
+            .join("\n");
+          out = out.replace(
+            /const REQUIRED_FIELDS: \{ label: string; value: string \}\[\] = \[\n\s*\/\/ Test Writer fills these in\n\];/,
+            `const REQUIRED_FIELDS: { label: string; value: string }[] = [\n${fieldEntries}\n];`
+          );
+        }
+        await writeFile(join(e2eDir, `${slug}-${baseName}.spec.ts`), out);
       }
     }
   }
