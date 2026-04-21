@@ -61,7 +61,7 @@ export default function AdminGroupLayout({
   return (
     <AdminLayout
       navItems={navItems}
-      userRole={user?.role}
+      userRole={user?.memberType}
       userName={user?.name}
     >
       {children}

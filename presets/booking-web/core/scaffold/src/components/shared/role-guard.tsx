@@ -11,7 +11,7 @@ interface RoleGuardProps {
 export function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
   const { user } = useAuth();
 
-  if (!user || !allowedRoles.includes(user.role)) {
+  if (!user || !allowedRoles.includes(user.memberType)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[300px] text-center">
         <p className="text-lg font-medium text-muted-foreground">

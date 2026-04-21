@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -21,8 +21,8 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
 
-    const success = await login(email, password);
-    if (success) {
+    const result = await login(username, password);
+    if (result.ok) {
       router.push("/dashboard");
     } else {
       setError("로그인에 실패했습니다. 다시 시도해주세요.");
@@ -35,18 +35,18 @@ export default function LoginPage() {
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <CardTitle className="text-xl">관리자 로그인</CardTitle>
-          <CardDescription>이메일과 비밀번호를 입력해주세요.</CardDescription>
+          <CardDescription>아이디와 비밀번호를 입력해주세요.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="email">이메일</Label>
+              <Label htmlFor="username">아이디</Label>
               <Input
-                id="email"
-                type="email"
-                placeholder="admin@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="username"
+                type="text"
+                placeholder="아이디"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 required
               />
             </div>
