@@ -296,6 +296,8 @@ Expected: 전체 PASS.
 
 만약 기존 테스트가 깨지면 해당 테스트의 기대 파일명을 새 네이밍(`{slug}-list-view.spec.ts` 등)으로 갱신한다.
 
+**Follow-up during review**: the code-quality reviewer discovered that `reporter.ts:buildCoverageFromSpecs` hardcodes the old suffixes (`-list`, `-detail`, `-form`). Rather than update reporter + its tests, we rename admin-web templates back to `list/detail/form.template.ts` so the generated filenames stay `{slug}-list.spec.ts` etc. No reporter change needed. This is done as a separate follow-up commit after Task 2.
+
 - [ ] **Step 5: Commit**
 
 ```bash

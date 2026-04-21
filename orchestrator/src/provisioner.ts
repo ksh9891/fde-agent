@@ -643,7 +643,7 @@ export default function AdminLayoutWrapper({
           /['"]__SEARCH_FIELD__['"]/g,
           `'${entity.fields[0] ?? ""}'`
         );
-        // REQUIRED_FIELDS injection (admin-web form-submit template compatibility)
+        // REQUIRED_FIELDS injection (admin-web form template compatibility)
         if (content.includes("// Test Writer fills these in")) {
           const fieldsToUse = entity.fields.slice(0, 3);
           const fieldEntries = fieldsToUse
