@@ -2,6 +2,7 @@ import { parseArgs } from "util";
 import { randomUUID } from "crypto";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
+import { readFile } from "fs/promises";
 import { parseEvalSpec } from "./eval-spec-parser.js";
 import { Provisioner } from "./provisioner.js";
 import { ClaudeCodeBuilder } from "./builder/claude-code.js";
@@ -9,7 +10,7 @@ import { EvalPipeline } from "./evaluator/pipeline.js";
 import { BuildCheckEvaluator } from "./evaluator/build-check.js";
 import { UnitTestEvaluator } from "./evaluator/unit-test.js";
 import { PageCheckEvaluator } from "./evaluator/page-check.js";
-import { ConsoleCheckEvaluator } from "./evaluator/console-check.js";
+import { ConsoleCheckEvaluator, type ConsoleLoginConfig } from "./evaluator/console-check.js";
 import { E2EEvaluator } from "./evaluator/e2e.js";
 import { TestGenerationStage } from "./test-generation-stage.js";
 import { loadIterationState } from "./resume.js";
@@ -77,10 +78,38 @@ async function main() {
     systemPromptPath: testWriterPromptPath,
   });
 
-  // Derive required pages from domain entities
-  const requiredPages = ["dashboard"];
-  for (const entity of evalSpec.domain.entities) {
-    requiredPages.push(entity.slug);
+  // Read preset.json for preset-specific behavior
+  const presetJsonPath = resolve(presetsDir, evalSpec.preset, "core", "preset.json");
+  interface PresetConfig {
+    skeleton_generation?: "admin-web" | "none";
+    required_pages?: string[];
+    console_login?: ConsoleLoginConfig;
+  }
+  let presetConfig: PresetConfig = {};
+  try {
+    const raw = await readFile(presetJsonPath, "utf-8");
+    presetConfig = JSON.parse(raw) as PresetConfig;
+  } catch {
+    // no preset.json — legacy admin-web behavior
+  }
+
+  // Derive required pages (paths with leading "/")
+  let requiredPages: string[];
+  if (presetConfig.required_pages && presetConfig.required_pages.length > 0) {
+    const explicit = presetConfig.required_pages;
+    if (presetConfig.skeleton_generation === "admin-web") {
+      // admin-web adds entity slug paths automatically
+      const entitySlugPaths = evalSpec.domain.entities.map((e) => `/${e.slug}`);
+      requiredPages = [...explicit, ...entitySlugPaths];
+    } else {
+      requiredPages = explicit;
+    }
+  } else {
+    // legacy fallback (no preset.json): /dashboard + /slug
+    requiredPages = [
+      "/dashboard",
+      ...evalSpec.domain.entities.map((e) => `/${e.slug}`),
+    ];
   }
 
   console.log(`[FDE-AGENT] Required pages: ${requiredPages.join(", ")}`);
@@ -89,7 +118,7 @@ async function main() {
     new BuildCheckEvaluator(),
     new UnitTestEvaluator(),
     new PageCheckEvaluator(requiredPages),
-    new ConsoleCheckEvaluator(requiredPages.filter((p) => p !== "dashboard")),
+    new ConsoleCheckEvaluator(requiredPages, presetConfig.console_login),
     new E2EEvaluator(evalSpec.requirements),
   ]);
 

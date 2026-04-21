@@ -33,6 +33,20 @@ export function classifyConsoleError(message: string): "hard" | "soft" | null {
 }
 
 // ---------------------------------------------------------------------------
+// Login config (preset-driven)
+// ---------------------------------------------------------------------------
+
+export interface ConsoleLoginConfig {
+  url: string;
+  username_selector: string;
+  password_selector: string;
+  username_value: string;
+  password_value: string;
+  submit_selector: string;
+  expected_url_pattern: string;
+}
+
+// ---------------------------------------------------------------------------
 // Server readiness helper
 // ---------------------------------------------------------------------------
 
@@ -59,10 +73,12 @@ async function waitForServer(
 
 export class ConsoleCheckEvaluator implements Evaluator {
   readonly name = "console" as const;
-  private entityPages: string[];
+  private pagePaths: string[];
+  private loginConfig?: ConsoleLoginConfig;
 
-  constructor(entityPages: string[]) {
-    this.entityPages = entityPages;
+  constructor(pagePaths: string[], loginConfig?: ConsoleLoginConfig) {
+    this.pagePaths = pagePaths;
+    this.loginConfig = loginConfig;
   }
 
   async run(workspace: string): Promise<EvalResult> {
@@ -105,21 +121,28 @@ export class ConsoleCheckEvaluator implements Evaluator {
           });
         });
 
-        // Pages to visit: /dashboard + each entity page
-        const pageSlugs = ["dashboard", ...this.entityPages];
-
-        for (const slug of pageSlugs) {
-          // Login flow for each page visit
-          await page.goto(`${baseUrl}/login`, { waitUntil: "networkidle" });
-          await page.fill('input[type="email"], input[name="email"]', "admin@example.com");
-          await page.fill('input[type="password"], input[name="password"]', "password");
-          await page.click('button[type="submit"]');
-          await page.waitForURL("**/dashboard**", { timeout: 10_000 });
+        for (const path of this.pagePaths) {
+          // Optional login flow (admin-web needs it; booking-web does not)
+          if (this.loginConfig) {
+            await page.goto(`${baseUrl}${this.loginConfig.url}`, {
+              waitUntil: "networkidle",
+            });
+            await page.fill(
+              this.loginConfig.username_selector,
+              this.loginConfig.username_value,
+            );
+            await page.fill(
+              this.loginConfig.password_selector,
+              this.loginConfig.password_value,
+            );
+            await page.click(this.loginConfig.submit_selector);
+            await page.waitForURL(this.loginConfig.expected_url_pattern, {
+              timeout: 10_000,
+            });
+          }
 
           // Navigate to target page
-          if (slug !== "dashboard") {
-            await page.goto(`${baseUrl}/${slug}`, { waitUntil: "networkidle" });
-          }
+          await page.goto(`${baseUrl}${path}`, { waitUntil: "networkidle" });
 
           // Give the page a moment to settle and fire any async errors
           await page.waitForTimeout(1_000);
