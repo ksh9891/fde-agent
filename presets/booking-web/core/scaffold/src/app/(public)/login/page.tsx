@@ -23,7 +23,7 @@ export default function LoginPage() {
 
     const result = await login(username, password);
     if (result.ok) {
-      router.push("/dashboard");
+      router.push("/");
     } else {
       setError("로그인에 실패했습니다. 다시 시도해주세요.");
     }
