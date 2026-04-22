@@ -71,16 +71,48 @@ describe("buildTaskContract", () => {
     expect(contract.run_id).toBe("run-xyz-456");
     expect(contract.iteration).toBe(2);
 
-    // failing_checks format: "EVALUATOR_NAME: message"
-    expect(contract.failing_checks).toContain("build: TypeScript compilation failed");
-    expect(contract.failing_checks).toContain("build: Missing dependency");
-    expect(contract.failing_checks).toContain("e2e: Button not found");
+    // failing_checks format: "EVALUATOR_NAME: message\n    evidence: ..."
+    expect(contract.failing_checks.some((c) => c.startsWith("build: TypeScript compilation failed"))).toBe(true);
+    expect(contract.failing_checks.some((c) => c.startsWith("build: Missing dependency"))).toBe(true);
+    expect(contract.failing_checks.some((c) => c.startsWith("e2e: Button not found"))).toBe(true);
     expect(contract.failing_checks).toHaveLength(3);
 
     // repair_hints extracted from failures (only those with repair_hint defined)
     expect(contract.repair_hints).toContain("Fix TypeScript types in app.tsx");
     expect(contract.repair_hints).toContain("Run npm install");
     expect(contract.repair_hints).toHaveLength(2);
+
+    // failing_checks must also carry the first evidence snippet so the Builder
+    // knows *why* the spec failed, not just that one did.
+    const evidenceCheck = contract.failing_checks.find((c) => c.includes("Button not found"));
+    expect(evidenceCheck).toMatch(/evidence:.*#submit/);
+  });
+
+  it("truncates long evidence and strips ANSI color codes", () => {
+    const longEvidence = "[31mError[0m: " + "x".repeat(1000);
+    const failures: EvalResult[] = [
+      {
+        evaluator: "e2e",
+        status: "fail",
+        severity: "hard",
+        failures: [
+          { id: "e2e-001", message: "timeout", evidence: [longEvidence] },
+        ],
+      },
+    ];
+    const contract = buildTaskContract({
+      evalSpec: sampleSpec,
+      workspace: "/w",
+      runId: "r",
+      iteration: 1,
+      failures,
+    });
+    const check = contract.failing_checks[0];
+    // ANSI stripped: no ESC chars
+    expect(check).not.toMatch(/\[/);
+    // Truncated: must not carry the full 1000-char payload
+    expect(check.length).toBeLessThan(600);
+    expect(check).toContain("…");
   });
 
   it("includes domain from evalSpec in the contract", () => {
