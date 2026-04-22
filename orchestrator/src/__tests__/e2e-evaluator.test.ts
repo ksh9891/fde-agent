@@ -215,4 +215,49 @@ describe("collectAllSpecs", () => {
     collectAllSpecs(suites, failures, stats, requirements);
     expect(stats.total).toBe(0);
   });
+
+  it("inherits severity from tags on a parent describe() block", () => {
+    const suites = [{
+      title: "flows/signup.spec.ts",
+      suites: [{
+        title: "회원가입 플로우 @FR-001",
+        specs: [spec("비밀번호가 8자 미만이면 저장되지 않는다", "failed", "err")],
+      }],
+    }];
+    const failures: EvalFailure[] = [];
+    const stats = { total: 0, passed: 0, failed: 0 };
+    collectAllSpecs(suites, failures, stats, requirements);
+    expect(failures[0].severity).toBe("hard");
+  });
+
+  it("keeps severity soft when no parent tag matches a hard requirement", () => {
+    const suites = [{
+      title: "flows/misc.spec.ts",
+      suites: [{
+        title: "기타 플로우 @UNKNOWN-999",
+        specs: [spec("이름 없는 시나리오", "failed", "err")],
+      }],
+    }];
+    const failures: EvalFailure[] = [];
+    const stats = { total: 0, passed: 0, failed: 0 };
+    collectAllSpecs(suites, failures, stats, requirements);
+    expect(failures[0].severity).toBe("soft");
+  });
+});
+
+describe("mapFailureSeverity title-array input", () => {
+  it("accepts an array of titles and reads tags from any of them", () => {
+    expect(
+      mapFailureSeverity(
+        ["회원가입 플로우 @FR-001", "비밀번호가 8자 미만"],
+        requirements,
+      ),
+    ).toBe("hard");
+  });
+
+  it("returns soft when array contains no matching tags and no phrase overlap", () => {
+    expect(
+      mapFailureSeverity(["완전 관계없는 제목", "다른 관계없는 제목"], requirements),
+    ).toBe("soft");
+  });
 });

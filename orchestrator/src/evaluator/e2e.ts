@@ -57,12 +57,21 @@ function phraseMatchScore(specTitle: string, candidate: string): number {
 const AC_MATCH_THRESHOLD = 2;
 
 export function mapFailureSeverity(
-  specTitle: string,
+  specTitle: string | string[],
   requirements: Requirement[],
 ): "hard" | "soft" {
-  // 1. Tag-based matching (@FR-001 등)
+  // Playwright nests describe() blocks as parent suites; tags like `@BR-001`
+  // often live on a parent describe, not the leaf spec title. Accept an array
+  // so callers can pass the full title stack and we search tags across all of
+  // them.
+  const titles = Array.isArray(specTitle) ? specTitle : [specTitle];
+  const combined = titles.join(" ");
+
+  // 1. Tag-based matching (@FR-001 등) — scan every title in the stack
   const tagPattern = /@([A-Za-z]+-\d+)/g;
-  const tags = [...specTitle.matchAll(tagPattern)].map((m) => m[1]);
+  const tags = titles.flatMap((t) =>
+    [...t.matchAll(tagPattern)].map((m) => m[1]),
+  );
 
   if (tags.length > 0) {
     for (const tag of tags) {
@@ -74,9 +83,9 @@ export function mapFailureSeverity(
 
   const e2eReqs = requirements.filter((r) => r.test_method === "e2e");
 
-  // 2. Fallback: title substring matching (legacy/template tests)
+  // 2. Fallback: title substring matching across the title stack
   for (const req of e2eReqs) {
-    if (specTitle.includes(req.title)) {
+    if (titles.some((t) => t.includes(req.title))) {
       return req.severity;
     }
   }
@@ -90,7 +99,7 @@ export function mapFailureSeverity(
       const candidates = [req.title, ...(req.acceptance_criteria ?? [])];
       const best = Math.max(
         0,
-        ...candidates.map((c) => phraseMatchScore(specTitle, c)),
+        ...candidates.map((c) => phraseMatchScore(combined, c)),
       );
       return { req, score: best };
     })
@@ -112,8 +121,12 @@ export function collectAllSpecs(
   failures: EvalFailure[],
   stats: SpecStats,
   requirements: Requirement[],
+  parentTitles: string[] = [],
 ): void {
   for (const suite of suites) {
+    const suiteTitles = suite.title
+      ? [...parentTitles, suite.title]
+      : parentTitles;
     if (suite.specs) {
       for (const spec of suite.specs) {
         // Iterate every test result across projects; this mirrors Playwright's
@@ -133,7 +146,12 @@ export function collectAllSpecs(
             stats.failed += 1;
             const errMsg =
               result.errors?.[0]?.message ?? result.error?.message;
-            const severity = mapFailureSeverity(spec.title, requirements);
+            // Pass full title stack so tags on parent describe() blocks
+            // (e.g. `describe("회원가입 플로우 @BR-001 @BR-005")`) are seen.
+            const severity = mapFailureSeverity(
+              [...suiteTitles, spec.title],
+              requirements,
+            );
             failures.push({
               id: `e2e_failure_${stats.failed}`,
               message: `E2E spec failed: ${spec.title}`,
@@ -149,7 +167,7 @@ export function collectAllSpecs(
       }
     }
     if (suite.suites) {
-      collectAllSpecs(suite.suites, failures, stats, requirements);
+      collectAllSpecs(suite.suites, failures, stats, requirements, suiteTitles);
     }
   }
 }
