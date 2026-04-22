@@ -29,6 +29,70 @@ describe("mapFailureSeverity", () => {
     expect(mapFailureSeverity("예약 목록 조회 > 페이지네이션 동작", requirements)).toBe("hard");
   });
 
+  it("falls back to acceptance_criteria phrase match when neither tag nor title matches", () => {
+    const reqsWithAC = [
+      {
+        id: "BR-005",
+        title: "회원가입 폼 검증",
+        severity: "hard" as const,
+        test_method: "e2e" as const,
+        description: "",
+        acceptance_criteria: [
+          "비밀번호가 8자 미만이거나 영문+숫자 조합이 아니면 저장되지 않는다",
+        ],
+      },
+    ];
+    // Spec title lacks @BR-005 tag and doesn't contain requirement title, but
+    // shares multiple 3+char phrases with the AC text ("비밀번호가", "미만", "저장되지", "않는다").
+    expect(
+      mapFailureSeverity(
+        "비밀번호가 8자 미만이면 저장되지 않는다",
+        reqsWithAC,
+      ),
+    ).toBe("hard");
+  });
+
+  it("prefers hard requirement on AC score tie", () => {
+    const reqsWithAC = [
+      {
+        id: "SOFT-1",
+        title: "soft req",
+        severity: "soft" as const,
+        test_method: "e2e" as const,
+        description: "",
+        acceptance_criteria: ["재고가 0인 객실은 예약이 거부된다"],
+      },
+      {
+        id: "HARD-1",
+        title: "hard req",
+        severity: "hard" as const,
+        test_method: "e2e" as const,
+        description: "",
+        acceptance_criteria: ["재고가 0인 객실은 예약이 거부된다"],
+      },
+    ];
+    expect(
+      mapFailureSeverity(
+        "재고 0인 객실은 예약이 거부된다",
+        reqsWithAC,
+      ),
+    ).toBe("hard");
+  });
+
+  it("does not match when AC shares fewer than two significant phrases", () => {
+    const reqsWithAC = [
+      {
+        id: "X-1",
+        title: "완전히 다른 제목",
+        severity: "hard" as const,
+        test_method: "e2e" as const,
+        description: "",
+        acceptance_criteria: ["객실 정보를 볼 수 있다"],
+      },
+    ];
+    expect(mapFailureSeverity("로그아웃이 동작한다", reqsWithAC)).toBe("soft");
+  });
+
   it("returns hard when spec title contains @tag matching hard requirement", () => {
     expect(mapFailureSeverity("신규 예약 등록 @FR-001", requirements)).toBe("hard");
   });
@@ -59,12 +123,34 @@ describe("collectAllSpecs", () => {
     { id: "FR-001", title: "신규 예약 등록", severity: "hard" as const, test_method: "e2e" as const, description: "" },
   ];
 
+  // Builds a Playwright spec node matching the real reporter JSON shape,
+  // where spec-level `status` is absent and the result lives under
+  // spec.tests[].results[].status.
+  const spec = (
+    title: string,
+    resultStatus: string,
+    errMsg?: string,
+  ) => ({
+    title,
+    ok: resultStatus === "passed",
+    tests: [
+      {
+        results: [
+          {
+            status: resultStatus,
+            errors: errMsg ? [{ message: errMsg }] : [],
+          },
+        ],
+      },
+    ],
+  });
+
   it("counts all specs including passed, failed, and skipped", () => {
     const suites = [{
       specs: [
-        { title: "test 1", status: "passed" },
-        { title: "test 2", status: "failed", error: { message: "oops" } },
-        { title: "test 3", status: "skipped" },
+        spec("test 1", "passed"),
+        spec("test 2", "failed", "oops"),
+        spec("test 3", "skipped"),
       ],
     }];
     const failures: EvalFailure[] = [];
@@ -74,14 +160,15 @@ describe("collectAllSpecs", () => {
     expect(stats.passed).toBe(1);
     expect(stats.failed).toBe(1);
     expect(failures).toHaveLength(1);
+    expect(failures[0].evidence).toEqual(["oops"]);
   });
 
   it("recurses into nested suites", () => {
     const suites = [{
       suites: [{
         specs: [
-          { title: "nested pass", status: "passed" },
-          { title: "nested fail", status: "timedOut" },
+          spec("nested pass", "passed"),
+          spec("nested fail", "timedOut", "timed out"),
         ],
       }],
     }];
@@ -95,13 +182,37 @@ describe("collectAllSpecs", () => {
 
   it("maps severity from requirements for failed specs", () => {
     const suites = [{
-      specs: [
-        { title: "신규 예약 등록 flow", status: "failed", error: { message: "err" } },
-      ],
+      specs: [spec("신규 예약 등록 flow", "failed", "err")],
     }];
     const failures: EvalFailure[] = [];
     const stats = { total: 0, passed: 0, failed: 0 };
     collectAllSpecs(suites, failures, stats, requirements);
     expect(failures[0].severity).toBe("hard");
+  });
+
+  it("counts every result across multiple projects for one spec", () => {
+    const multiProjectSpec = {
+      title: "multi-project spec",
+      ok: false,
+      tests: [
+        { results: [{ status: "passed", errors: [] }] },
+        { results: [{ status: "failed", errors: [{ message: "chromium failed" }] }] },
+      ],
+    };
+    const suites = [{ specs: [multiProjectSpec] }];
+    const failures: EvalFailure[] = [];
+    const stats = { total: 0, passed: 0, failed: 0 };
+    collectAllSpecs(suites, failures, stats, requirements);
+    expect(stats.total).toBe(2);
+    expect(stats.passed).toBe(1);
+    expect(stats.failed).toBe(1);
+  });
+
+  it("skips specs whose tests array is empty (not reported)", () => {
+    const suites = [{ specs: [{ title: "unreported", tests: [] }] }];
+    const failures: EvalFailure[] = [];
+    const stats = { total: 0, passed: 0, failed: 0 };
+    collectAllSpecs(suites, failures, stats, requirements);
+    expect(stats.total).toBe(0);
   });
 });

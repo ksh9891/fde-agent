@@ -4,15 +4,26 @@ import { execa } from "execa";
 import type { EvalResult, EvalFailure, Requirement } from "../types.js";
 import type { Evaluator } from "./pipeline.js";
 
-interface PlaywrightTestResult {
-  title: string;
+interface PlaywrightResult {
   status?: string;
+  errors?: Array<{ message?: string }>;
   error?: { message?: string };
+}
+
+interface PlaywrightTest {
+  results?: PlaywrightResult[];
+  status?: string;
+}
+
+interface PlaywrightSpec {
+  title: string;
+  ok?: boolean;
+  tests?: PlaywrightTest[];
 }
 
 interface PlaywrightSuite {
   title?: string;
-  specs?: PlaywrightTestResult[];
+  specs?: PlaywrightSpec[];
   suites?: PlaywrightSuite[];
 }
 
@@ -26,6 +37,24 @@ export interface SpecStats {
   passed: number;
   failed: number;
 }
+
+// Extract contiguous runs of 3+ Korean/alphanumeric chars as matching phrases.
+// Used to approximate requirement-to-spec matching when Test Writer fails to
+// emit the @{requirement_id} tag — a safety net, not a replacement for tags.
+function extractPhrases(text: string): string[] {
+  return text.match(/[가-힣0-9A-Za-z]{3,}/g) ?? [];
+}
+
+function phraseMatchScore(specTitle: string, candidate: string): number {
+  const phrases = Array.from(new Set(extractPhrases(candidate)));
+  let score = 0;
+  for (const phrase of phrases) {
+    if (specTitle.includes(phrase)) score += 1;
+  }
+  return score;
+}
+
+const AC_MATCH_THRESHOLD = 2;
 
 export function mapFailureSeverity(
   specTitle: string,
@@ -43,13 +72,38 @@ export function mapFailureSeverity(
     return "soft"; // tags found but none are hard
   }
 
-  // 2. Fallback: title substring matching (legacy/template tests)
   const e2eReqs = requirements.filter((r) => r.test_method === "e2e");
+
+  // 2. Fallback: title substring matching (legacy/template tests)
   for (const req of e2eReqs) {
     if (specTitle.includes(req.title)) {
       return req.severity;
     }
   }
+
+  // 3. Safety-net: acceptance_criteria phrase overlap. Picks the requirement
+  //    with the highest phrase score; ties resolve to `hard` severity. Used
+  //    when Test Writer failed to attach an @{id} tag but the spec text still
+  //    clearly describes a declared requirement.
+  const scored = e2eReqs
+    .map((req) => {
+      const candidates = [req.title, ...(req.acceptance_criteria ?? [])];
+      const best = Math.max(
+        0,
+        ...candidates.map((c) => phraseMatchScore(specTitle, c)),
+      );
+      return { req, score: best };
+    })
+    .filter((x) => x.score >= AC_MATCH_THRESHOLD)
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      const aHard = a.req.severity === "hard" ? 1 : 0;
+      const bHard = b.req.severity === "hard" ? 1 : 0;
+      return bHard - aHard;
+    });
+
+  if (scored.length > 0) return scored[0].req.severity;
+
   return "soft";
 }
 
@@ -62,19 +116,35 @@ export function collectAllSpecs(
   for (const suite of suites) {
     if (suite.specs) {
       for (const spec of suite.specs) {
-        stats.total += 1;
-        if (spec.status === "failed" || spec.status === "timedOut") {
-          stats.failed += 1;
-          const severity = mapFailureSeverity(spec.title, requirements);
-          failures.push({
-            id: `e2e_failure_${stats.failed}`,
-            message: `E2E spec failed: ${spec.title}`,
-            severity,
-            evidence: spec.error?.message ? [spec.error.message] : [],
-            repair_hint: "Fix the failing E2E test scenario",
-          });
-        } else if (spec.status === "passed" || spec.status === "expected") {
-          stats.passed += 1;
+        // Iterate every test result across projects; this mirrors Playwright's
+        // actual JSON shape where spec-level status is not populated.
+        const results: PlaywrightResult[] = (spec.tests ?? []).flatMap(
+          (t) => t.results ?? [],
+        );
+
+        if (results.length === 0) {
+          continue;
+        }
+
+        for (const result of results) {
+          stats.total += 1;
+          const status = result.status;
+          if (status === "failed" || status === "timedOut" || status === "interrupted") {
+            stats.failed += 1;
+            const errMsg =
+              result.errors?.[0]?.message ?? result.error?.message;
+            const severity = mapFailureSeverity(spec.title, requirements);
+            failures.push({
+              id: `e2e_failure_${stats.failed}`,
+              message: `E2E spec failed: ${spec.title}`,
+              severity,
+              evidence: errMsg ? [errMsg] : [],
+              repair_hint: "Fix the failing E2E test scenario",
+            });
+          } else if (status === "passed") {
+            stats.passed += 1;
+          }
+          // skipped → neither passed nor failed
         }
       }
     }
