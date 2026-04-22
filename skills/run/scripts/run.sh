@@ -10,11 +10,9 @@ if [ ! -d "${ORCH_DIR}/node_modules" ]; then
   (cd "${ORCH_DIR}" && npm install)
 fi
 
-# 2. Build if dist/ missing
-if [ ! -d "${ORCH_DIR}/dist" ]; then
-  echo "[FDE-AGENT] Building orchestrator..."
-  (cd "${ORCH_DIR}" && npm run build)
-fi
+# 2. Build orchestrator (always — tsc is fast and dist/ can drift from src/)
+echo "[FDE-AGENT] Building orchestrator..."
+(cd "${ORCH_DIR}" && npm run build)
 
 # 3. Run orchestrator, forwarding all arguments
 exec node "${ORCH_DIR}/dist/index.js" "$@"
