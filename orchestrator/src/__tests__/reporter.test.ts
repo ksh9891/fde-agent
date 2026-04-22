@@ -61,4 +61,41 @@ describe("generateSummary", () => {
     expect(summary).toContain("API_KEY");
     expect(summary).toContain("--resume");
   });
+
+  it("loop completed but final re-run has hard failure: header should not say 통과 ✅", () => {
+    const state = makeCompletedState();
+    const resultsWithHardFail: EvalResult[] = [
+      { evaluator: "build", status: "pass", severity: "hard", failures: [] },
+      {
+        evaluator: "e2e",
+        status: "fail",
+        severity: "hard",
+        failures: [
+          { id: "e2e_failure_1", message: "timeout", evidence: [], severity: "hard" },
+        ],
+        stats: { total: 10, passed: 9, failed: 1 },
+      },
+    ];
+    const summary = generateSummary(state, resultsWithHardFail, mockEvalSpec);
+    // Header row derived status must flag hard failure, not claim pass.
+    expect(summary).toMatch(/최종 상태 \|[^|]*재실행 실패/);
+    expect(summary).not.toMatch(/최종 상태 \| 통과 ✅ \|/);
+  });
+
+  it("loop completed with only soft failures: header should indicate soft warning", () => {
+    const state = makeCompletedState();
+    const resultsWithSoftFail: EvalResult[] = [
+      { evaluator: "build", status: "pass", severity: "hard", failures: [] },
+      {
+        evaluator: "console",
+        status: "fail",
+        severity: "soft",
+        failures: [
+          { id: "c1", message: "x", evidence: [], severity: "soft" },
+        ],
+      },
+    ];
+    const summary = generateSummary(state, resultsWithSoftFail, mockEvalSpec);
+    expect(summary).toContain("soft 경고");
+  });
 });

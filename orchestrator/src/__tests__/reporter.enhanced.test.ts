@@ -162,6 +162,20 @@ describe("buildCoverageFromSpecs", () => {
     expect(reservations?.form).toBe("PASS");
   });
 
+  it("maps booking-web {slug}-catalog-{list,detail}.spec.ts filenames to entity coverage", () => {
+    const bookingSpecs: PlaywrightSpecInfo[] = [
+      { file: "e2e/rooms-catalog-list.spec.ts", title: "객실 목록", status: "passed" },
+      { file: "e2e/rooms-catalog-detail.spec.ts", title: "객실 상세", status: "passed" },
+      { file: "e2e/reservations-catalog-list.spec.ts", title: "예약 목록", status: "failed" },
+    ];
+    const coverage = buildCoverageFromSpecs(bookingSpecs, mockEvalSpec);
+    const rooms = coverage.templateCoverage.find((c) => c.entity === "객실");
+    expect(rooms?.list).toBe("PASS");
+    expect(rooms?.detail).toBe("PASS");
+    const reservations = coverage.templateCoverage.find((c) => c.entity === "예약");
+    expect(reservations?.list).toBe("FAIL");
+  });
+
   it("maps flow tests to key_flow coverage table with requirementIds", () => {
     const coverage = buildCoverageFromSpecs(mockPlaywrightSpecs, mockEvalSpec);
     expect(coverage.flowCoverage).toHaveLength(2);

@@ -17,6 +17,25 @@ function formatStatus(status: string): string {
   }
 }
 
+// The post-loop report-time re-run can expose flaky or newly failing specs
+// that the loop considered resolved. Derive the overall verdict from the
+// actual final evaluator results, not just the loop's terminal status.
+export function deriveFinalStatus(
+  loopStatus: string,
+  finalResults: EvalResult[],
+): string {
+  if (loopStatus !== "completed") return formatStatus(loopStatus);
+  const hardFail = finalResults.some(
+    (r) => r.status === "fail" && r.severity === "hard",
+  );
+  if (hardFail) return "재실행 실패 ❌ (루프는 통과했으나 리포트 시점 재평가에서 hard 실패 재현)";
+  const softFail = finalResults.some(
+    (r) => r.status === "fail" && r.severity === "soft",
+  );
+  if (softFail) return "통과 (soft 경고 있음) ⚠️";
+  return "통과 ✅";
+}
+
 // ---------------------------------------------------------------------------
 // Playwright report coverage mapping
 // ---------------------------------------------------------------------------
@@ -52,16 +71,23 @@ export function buildCoverageFromSpecs(
 ): CoverageData {
   const templateCoverage: TemplateCoverageEntry[] = [];
   for (const entity of evalSpec.domain.entities) {
-    const slug = entity.slug;
+    const slug = entity.slug.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    // Support both admin-web (`{slug}-list.spec.ts`) and booking-web
+    // (`{slug}-catalog-list.spec.ts`) template naming conventions.
+    const listPattern = new RegExp(`^${slug}(-catalog)?-list\\.spec\\.ts$`);
+    const detailPattern = new RegExp(`^${slug}(-catalog)?-detail\\.spec\\.ts$`);
+    const formPattern = new RegExp(`^${slug}(-catalog)?-form\\.spec\\.ts$`);
+
     const entry: TemplateCoverageEntry = { entity: entity.name, list: "-", detail: "-", form: "-" };
     for (const spec of specs) {
       const fileName = spec.file.split("/").pop() ?? "";
-      if (fileName === `${slug}-list.spec.ts`) {
-        entry.list = spec.status === "passed" ? "PASS" : "FAIL";
-      } else if (fileName === `${slug}-detail.spec.ts`) {
-        entry.detail = spec.status === "passed" ? "PASS" : "FAIL";
-      } else if (fileName === `${slug}-form.spec.ts`) {
-        entry.form = spec.status === "passed" ? "PASS" : "FAIL";
+      const label = spec.status === "passed" ? "PASS" : "FAIL";
+      if (listPattern.test(fileName)) {
+        entry.list = label;
+      } else if (detailPattern.test(fileName)) {
+        entry.detail = label;
+      } else if (formPattern.test(fileName)) {
+        entry.form = label;
       }
     }
     templateCoverage.push(entry);
@@ -110,7 +136,7 @@ export function generateSummary(
   lines.push(`| 프리셋 | ${evalSpec.preset} |`);
   lines.push(`| 팔레트 | ${evalSpec.palette} |`);
   lines.push(`| Run ID | ${state.run_id} |`);
-  lines.push(`| 최종 상태 | ${formatStatus(state.status)} |`);
+  lines.push(`| 최종 상태 | ${deriveFinalStatus(state.status, finalResults)} |`);
   lines.push(`| 총 반복 횟수 | ${state.total_iterations} |`);
   lines.push(`| 실행 시각 | ${new Date().toISOString()} |`);
   lines.push("");
