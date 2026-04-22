@@ -15,7 +15,8 @@ async function ensureLogin(page: import("@playwright/test").Page) {
   await page.getByLabel(/비밀번호/).fill(TEST_PASSWORD);
   await page.getByLabel(/이름/).fill("테스트");
   await page.getByLabel(/연락처/).fill("010-0000-0000");
-  await page.getByRole("button", { name: /회원가입/ }).click();
+  // Scope to <main> because PublicLayout header also has a "회원가입" nav button.
+  await page.getByRole("main").getByRole("button", { name: /회원가입/ }).click();
   // 성공이든 실패든 로그인으로 이동해 세션 확보
   await page.goto("/login");
   await page.getByLabel(/아이디/).fill(TEST_USERNAME);

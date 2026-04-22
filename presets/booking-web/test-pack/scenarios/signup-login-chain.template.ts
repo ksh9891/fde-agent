@@ -16,7 +16,8 @@ test.describe("가입 후 로그인 체인", () => {
     await page.getByLabel(/비밀번호/).fill(password);
     await page.getByLabel(/이름/).fill("홍길동");
     await page.getByLabel(/연락처/).fill("010-1234-5678");
-    await page.getByRole("button", { name: /회원가입/ }).click();
+    // Scope to <main> because PublicLayout header also has a "회원가입" nav button.
+    await page.getByRole("main").getByRole("button", { name: /회원가입/ }).click();
 
     // 가입 성공 시 자동 로그인되어 /my/reservations로 이동
     await page.waitForURL(/\/my\/reservations/);

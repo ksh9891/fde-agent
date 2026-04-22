@@ -31,7 +31,8 @@ test.describe("회원가입 폼", () => {
 
   test("필수 항목 누락 시 저장 불가", async ({ page }) => {
     await page.goto("/signup");
-    await page.getByRole("button", { name: /회원가입/ }).click();
+    // Scope to <main> because PublicLayout header also has a "회원가입" nav button.
+    await page.getByRole("main").getByRole("button", { name: /회원가입/ }).click();
     await expect(page).toHaveURL(/\/signup/);
   });
 });
