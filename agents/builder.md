@@ -41,7 +41,21 @@ Build the full prototype based on the task contract's `domain` and `key_flows` a
 
 ## Subsequent Iterations (failing_checks is present)
 
-Focus ONLY on fixing the listed failures. Do not rewrite unrelated code. Read `repair_hints` for specific guidance.
+Focus ONLY on fixing the listed failures. Do not rewrite unrelated code.
+
+Each entry in `failing_checks` has two parts:
+1. `{evaluator}: {message}` — which evaluator (build / unit_test / page_check / console / e2e) failed and the short description.
+2. `evidence: …` — a trimmed snippet of the actual runtime error (assertion mismatch, missing locator, stack line, etc.). Read this to learn *why* the failure happened, not just that it did.
+
+When failures repeat across iterations, it usually means you fixed the symptom (a visible button) but not the root cause (the page still renders nothing because state fetch returned 500). Read the evidence carefully:
+- "Locator: getByRole('button', { name: /예약하기/ }) … toBeVisible() failed" → the page component is not rendering that button at all; check whether data loaded.
+- "Test timeout of 30000ms exceeded" → a `waitForURL` or `.click()` is stuck; check the network tab for a 4xx/5xx from your API route.
+- "expect(received).toBe(403)" → the API is returning something other than what the requirement wants; fix the handler's response code.
+- "강제 strict mode violation" → two elements match the same selector; the test is looking in the wrong place. Do NOT edit the test; fix the page so the intended element is uniquely reachable.
+
+`repair_hints` is a secondary hint summary; always prefer the evidence.
+
+Never modify files under `e2e/` or any scaffold-owned UI primitives to make tests pass — fix the application code that the tests point to.
 
 ## Rules
 
